@@ -9,6 +9,7 @@ import gspread
 from google.oauth2 import service_account
 import json
 import os
+import base64
 from datetime import datetime, timedelta
 import time
 from typing import List, Dict, Any, Optional
@@ -17,10 +18,22 @@ from flask import Flask, jsonify
 # ==================== 設定區 ====================
 
 # Facebook API 設定
+def get_facebook_token():
+    """取得 Facebook Access Token（支援 base64 編碼）"""
+    token = os.environ.get('FACEBOOK_ACCESS_TOKEN')
+    token_base64 = os.environ.get('FACEBOOK_ACCESS_TOKEN_BASE64')
+
+    if token_base64:
+        return base64.b64decode(token_base64).decode('utf-8')
+    elif token:
+        return token
+    else:
+        return 'EAAPbnmTSpmoBPsBfJHKn3AZAHpCZC2XvkyYvZAcKmZCQHPnPL44i8yevD1PAxSGjaRRl87RFZB79vTKPGKAFdbT35HfZAcZApp5j76f6hkIXCsO6Sgmi06H7mbkOELkn3gfqLU2UKSDaDMfs5oeNyfBMfVpmG4GSlb1WF9GJ3pluweVV0mb2Jp79bWfkcvYZAx4eKNJtZApYZD'
+
 FACEBOOK_CONFIG = {
     'app_id': '1085898272974442',
     'page_id': '103640919705348',
-    'access_token': os.environ.get('FACEBOOK_ACCESS_TOKEN', 'EAAPbnmTSpmoBPsBfJHKn3AZAHpCZC2XvkyYvZAcKmZCQHPnPL44i8yevD1PAxSGjaRRl87RFZB79vTKPGKAFdbT35HfZAcZApp5j76f6hkIXCsO6Sgmi06H7mbkOELkn3gfqLU2UKSDaDMfs5oeNyfBMfVpmG4GSlb1WF9GJ3pluweVV0mb2Jp79bWfkcvYZAx4eKNJtZApYZD'),
+    'access_token': get_facebook_token(),
     'api_version': 'v23.0'
 }
 
@@ -239,11 +252,15 @@ def process_posts_data(posts: List[Dict], page_id: str, page_name: str, fetch_da
 def setup_google_sheets_client() -> Optional[gspread.Client]:
     """設定 Google Sheets 客戶端（使用環境變數中的服務帳戶金鑰）"""
     try:
-        # 從環境變數讀取服務帳戶 JSON
+        # 從環境變數讀取服務帳戶 JSON（支援 base64 編碼）
         credentials_json = os.environ.get('GCP_SA_CREDENTIALS')
+        credentials_base64 = os.environ.get('GCP_SA_CREDENTIALS_BASE64')
 
-        if not credentials_json:
-            print("✗ 找不到 GCP_SA_CREDENTIALS 環境變數")
+        if credentials_base64:
+            # 如果是 base64 編碼，先解碼
+            credentials_json = base64.b64decode(credentials_base64).decode('utf-8')
+        elif not credentials_json:
+            print("✗ 找不到 GCP_SA_CREDENTIALS 或 GCP_SA_CREDENTIALS_BASE64 環境變數")
             return None
 
         # 將 JSON 字串轉換為字典

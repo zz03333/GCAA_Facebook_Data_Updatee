@@ -43,18 +43,15 @@ jobs:
         docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/facebook-insights/${{ env.SERVICE_NAME }}:${{ github.sha }}
         docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/facebook-insights/${{ env.SERVICE_NAME }}:latest
 
-    - name: Create env vars file
+    - name: Deploy to Cloud Run
       env:
         GCP_SA_CREDENTIALS: ${{ secrets.GCP_SA_CREDENTIALS }}
         FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
       run: |
-        cat > .env.yaml <<EOF
-        GCP_SA_CREDENTIALS: "${GCP_SA_CREDENTIALS}"
-        FACEBOOK_ACCESS_TOKEN: "${FACEBOOK_ACCESS_TOKEN}"
-        EOF
+        # Encode secrets to avoid special character issues
+        GCP_SA_BASE64=$(echo -n "${GCP_SA_CREDENTIALS}" | base64 -w 0)
+        FB_TOKEN_BASE64=$(echo -n "${FACEBOOK_ACCESS_TOKEN}" | base64 -w 0)
 
-    - name: Deploy to Cloud Run
-      run: |
         gcloud run deploy ${{ env.SERVICE_NAME }} \
           --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/facebook-insights/${{ env.SERVICE_NAME }}:latest \
           --platform managed \
@@ -62,7 +59,8 @@ jobs:
           --allow-unauthenticated \
           --memory 512Mi \
           --timeout 540 \
-          --env-vars-file .env.yaml \
+          --set-env-vars "GCP_SA_CREDENTIALS_BASE64=${GCP_SA_BASE64}" \
+          --set-env-vars "FACEBOOK_ACCESS_TOKEN_BASE64=${FB_TOKEN_BASE64}" \
           --project ${{ env.PROJECT_ID }}
 
     - name: Get Service URL
