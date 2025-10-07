@@ -9,7 +9,7 @@ on:
       - main
 
 env:
-  PROJECT_ID: 'gemini-api-reports'
+  PROJECT_ID: 'rich-suprstate-468614-f5'
   SERVICE_NAME: 'facebook-insights-collector'
   REGION: 'asia-east1'
   REGISTRY: 'asia-east1-docker.pkg.dev'
@@ -44,6 +44,9 @@ jobs:
         docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/facebook-insights/${{ env.SERVICE_NAME }}:latest
 
     - name: Deploy to Cloud Run
+      env:
+        GCP_SA_CREDENTIALS: ${{ secrets.GCP_SA_CREDENTIALS }}
+        FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
       run: |
         gcloud run deploy ${{ env.SERVICE_NAME }} \
           --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/facebook-insights/${{ env.SERVICE_NAME }}:latest \
@@ -52,8 +55,8 @@ jobs:
           --allow-unauthenticated \
           --memory 512Mi \
           --timeout 540 \
-          --set-env-vars "GCP_SA_CREDENTIALS=${{ secrets.GCP_SA_CREDENTIALS }}" \
-          --set-env-vars "FACEBOOK_ACCESS_TOKEN=${{ secrets.FACEBOOK_ACCESS_TOKEN }}" \
+          --update-env-vars GCP_SA_CREDENTIALS="${GCP_SA_CREDENTIALS}" \
+          --update-env-vars FACEBOOK_ACCESS_TOKEN="${FACEBOOK_ACCESS_TOKEN}" \
           --project ${{ env.PROJECT_ID }}
 
     - name: Get Service URL
