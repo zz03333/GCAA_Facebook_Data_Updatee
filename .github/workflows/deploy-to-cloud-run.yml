@@ -9,7 +9,7 @@ on:
       - main
 
 env:
-  PROJECT_ID: 'rich-suprstate-468614-f5'
+  PROJECT_ID: 'gemini-api-reports'
   SERVICE_NAME: 'facebook-insights-collector'
   REGION: 'asia-east1'
   REGISTRY: 'asia-east1-docker.pkg.dev'
