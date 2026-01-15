@@ -13,7 +13,7 @@ import base64
 from datetime import datetime, timedelta
 import time
 from typing import List, Dict, Any, Optional
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 
 # ==================== 設定區 ====================
 
@@ -28,7 +28,7 @@ def get_facebook_token():
     elif token:
         return token
     else:
-        return 'EAAPbnmTSpmoBPsBfJHKn3AZAHpCZC2XvkyYvZAcKmZCQHPnPL44i8yevD1PAxSGjaRRl87RFZB79vTKPGKAFdbT35HfZAcZApp5j76f6hkIXCsO6Sgmi06H7mbkOELkn3gfqLU2UKSDaDMfs5oeNyfBMfVpmG4GSlb1WF9GJ3pluweVV0mb2Jp79bWfkcvYZAx4eKNJtZApYZD'
+        return 'EAAPbnmTSpmoBQEIJ3H6KCC1ZA6YFROcXcZAHJAhf2g8eoG4cyParQdkxKXRYyb8ww9vFGIDogWbDqO8kAwY9aVjrV0zfJdqNuDQDLA5JiKas095i3od2NZCHLAgMTo7CFf9kXGza1okttRrAPHZBe70GXUEAlnzh1yZBFIHPmFFkTImusaTBN6F94uIeNsFZBfjD8ms9kZD'
 
 FACEBOOK_CONFIG = {
     'app_id': '1085898272974442',
@@ -44,14 +44,19 @@ GOOGLE_SHEETS_CONFIG = {
 }
 
 # 貼文層級 Insights 指標
+# 更新日期: 2026-01-15 - 新增互動與觸及指標
 POST_INSIGHTS_METRICS = [
     # 貼文互動指標
     'post_clicks',
+    'post_engaged_users',           # 新增: 與貼文互動的不重複用戶數
+    'post_negative_feedback',       # 新增: 負面回饋次數
     # 貼文觸及指標
-    'post_impressions',
     'post_impressions_unique',
-    'post_impressions_organic',
-    'post_impressions_paid',
+    'post_impressions_fan_unique',  # 新增: 粉絲觸及人數
+    'post_impressions_viral_unique', # 新增: 病毒式觸及人數
+    # 'post_impressions',  # ✗ 已棄用
+    # 'post_impressions_organic',  # ✗ 已棄用
+    # 'post_impressions_paid',  # ✗ 已棄用
     # 貼文心情反應指標
     'post_reactions_like_total',
     'post_reactions_love_total',
@@ -96,12 +101,15 @@ def test_facebook_api_connection(config: Dict[str, str]) -> bool:
 
 def fetch_page_posts(config: Dict[str, str], since: str, until: str, limit: int = 100) -> Optional[List[Dict]]:
     """從 Facebook API 獲取頁面貼文列表"""
+    import calendar
     try:
         url = f"https://graph.facebook.com/{config['api_version']}/{config['page_id']}/posts"
 
-        # 轉換日期為 Unix timestamp
-        since_ts = int(datetime.strptime(since, '%Y-%m-%d').timestamp())
-        until_ts = int(datetime.strptime(until, '%Y-%m-%d').timestamp()) + 86400
+        # 轉換日期為 Unix timestamp (UTC)
+        since_dt = datetime.strptime(since, '%Y-%m-%d')
+        until_dt = datetime.strptime(until, '%Y-%m-%d')
+        since_ts = calendar.timegm(since_dt.timetuple())
+        until_ts = calendar.timegm(until_dt.timetuple()) + 86400
 
         params = {
             'access_token': config['access_token'],
@@ -297,7 +305,9 @@ def write_to_google_sheets(client: gspread.Client, config: Dict[str, str], df: p
         expected_columns = [
             'fetch_date', 'post_id', 'page_id', 'page_name', 'message', 'created_time', 'permalink_url',
             'reactions_count', 'comments_count', 'shares_count',
-            'post_clicks', 'post_impressions', 'post_impressions_unique', 'post_impressions_organic', 'post_impressions_paid',
+            'post_clicks', 'post_engaged_users', 'post_negative_feedback',
+            'post_impressions_unique', 'post_impressions_fan_unique', 'post_impressions_viral_unique',
+            'post_impressions', 'post_impressions_organic', 'post_impressions_paid',
             'post_reactions_like_total', 'post_reactions_love_total', 'post_reactions_wow_total',
             'post_reactions_haha_total', 'post_reactions_sorry_total', 'post_reactions_anger_total',
             'post_video_views', 'post_video_views_organic', 'post_video_views_paid'
@@ -378,11 +388,11 @@ def write_to_google_sheets(client: gspread.Client, config: Dict[str, str], df: p
 def main_posts_collection(since_date: str = None, until_date: str = None) -> bool:
     """主要的貼文數據蒐集流程"""
 
-    # 設定日期範圍 - 預設為最近 90 天
+    # 設定日期範圍 - 抓取所有歷史資料
     if until_date is None:
-        until_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        until_date = datetime.now().strftime('%Y-%m-%d')
     if since_date is None:
-        since_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
+        since_date = '2024-01-01'
 
     fetch_date = datetime.now().strftime('%Y-%m-%d')
 
@@ -467,20 +477,276 @@ app = Flask(__name__)
 
 @app.route('/', methods=['GET', 'POST'])
 def run_collection():
-    """Cloud Scheduler 會呼叫這個端點來觸發數據收集"""
+    """Cloud Scheduler 會呼叫這個端點來觸發完整數據收集流程"""
     try:
-        success = main_posts_collection()
+        import run_pipeline
+        from exporters import export_to_sheets as exporter
+        from exporters import firestore_sync
+
+        results = {
+            'pipeline': False,
+            'export': False,
+            'firestore': False
+        }
+
+        # Step 1: 執行 run_pipeline（抓取 Facebook 資料 + 分析）
+        print("=" * 60)
+        print("開始執行完整數據收集流程...")
+        print("=" * 60)
+
+        try:
+            run_pipeline.run_full_pipeline()
+            results['pipeline'] = True
+            print("✓ run_pipeline 完成")
+        except Exception as e:
+            print(f"✗ run_pipeline 失敗: {e}")
+
+        # Step 2: 執行 export_to_sheets（匯出到 Google Sheets）
+        try:
+            success = exporter.main()
+            results['export'] = success
+            print("✓ export_to_sheets 完成" if success else "✗ export_to_sheets 失敗")
+        except Exception as e:
+            print(f"✗ export_to_sheets 失敗: {e}")
+
+        # Step 3: 執行 firestore_sync（同步到 Firestore for real-time dashboard）
+        try:
+            success = firestore_sync.sync_all()
+            results['firestore'] = success
+            print("✓ firestore_sync 完成" if success else "✗ firestore_sync 失敗")
+        except Exception as e:
+            print(f"✗ firestore_sync 失敗: {e}")
+            # Firestore sync failure is not critical, don't fail the whole pipeline
+            results['firestore'] = False
+
+        # 判斷結果
+        if results['pipeline'] and results['export']:
+            return jsonify({
+                'status': 'success',
+                'message': '完整數據收集流程已完成',
+                'results': results,
+                'timestamp': datetime.now().isoformat()
+            }), 200
+        else:
+            return jsonify({
+                'status': 'partial',
+                'message': '部分流程失敗',
+                'results': results,
+                'timestamp': datetime.now().isoformat()
+            }), 500
+
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'traceback': traceback.format_exc(),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """健康檢查端點"""
+    return jsonify({'status': 'healthy'}), 200
+
+
+@app.route('/analytics', methods=['POST'])
+def run_analytics():
+    """執行數據分析處理端點"""
+    try:
+        from analytics import analytics_processor
+
+        conn = analytics_processor.get_connection()
+
+        # 執行分析流程
+        classified_count = analytics_processor.process_all_posts_classification(conn)
+        kpi_count = analytics_processor.calculate_post_kpis(conn)
+        analytics_processor.update_benchmarks(conn)
+
+        conn.close()
+
+        return jsonify({
+            'status': 'success',
+            'message': '分析處理完成',
+            'classified_count': classified_count,
+            'kpi_count': kpi_count,
+            'timestamp': datetime.now().isoformat()
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+
+@app.route('/reports/weekly', methods=['GET'])
+def get_weekly_report():
+    """取得週報端點"""
+    try:
+        from analytics import analytics_reports
+
+        conn = analytics_reports.get_connection()
+        report_text = analytics_reports.generate_weekly_report(conn)
+        conn.close()
+
+        return jsonify({
+            'status': 'success',
+            'report': report_text,
+            'timestamp': datetime.now().isoformat()
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+
+@app.route('/query', methods=['GET'])
+def query_custom():
+    """
+    自訂查詢端點
+
+    參數:
+        start_date: 起始日期 (YYYY-MM-DD)
+        end_date: 結束日期 (YYYY-MM-DD)
+        granularity: 粒度 (daily/weekly/monthly, 預設: weekly)
+        type: 查詢類型 (trends/topics/time_slots/top_posts/comparison)
+        topic: 主題篩選 (可選)
+        time_slot: 時段篩選 (可選)
+        limit: 回傳筆數 (預設: 10)
+
+    範例:
+        /query?start_date=2025-11-01&end_date=2025-11-30&granularity=weekly&type=trends
+        /query?start_date=2025-11-01&end_date=2025-11-30&type=topics
+        /query?start_date=2025-11-01&end_date=2025-11-30&type=top_posts&limit=20
+    """
+    try:
+        from analytics import query_analytics
+
+        # 解析參數
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        granularity = request.args.get('granularity', 'weekly')
+        query_type = request.args.get('type', 'trends')
+        topic = request.args.get('topic')
+        time_slot = request.args.get('time_slot')
+        limit = int(request.args.get('limit', 10))
+
+        # 驗證參數
+        if not start_date or not end_date:
+            # 預設最近 30 天
+            end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+            start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+
+        conn = query_analytics.get_connection()
+
+        # 根據查詢類型執行不同查詢
+        if query_type == 'trends':
+            data = query_analytics.query_by_date_range(conn, start_date, end_date, granularity)
+        elif query_type == 'topics':
+            data = query_analytics.query_topic_performance(conn, start_date, end_date, topic)
+        elif query_type == 'time_slots':
+            data = query_analytics.query_time_slot_performance(conn, start_date, end_date)
+        elif query_type == 'top_posts':
+            data = query_analytics.query_top_posts(conn, start_date, end_date, limit, topic, time_slot)
+        else:
+            conn.close()
+            return jsonify({
+                'status': 'error',
+                'message': f'不支援的查詢類型: {query_type}'
+            }), 400
+
+        conn.close()
+
+        return jsonify({
+            'status': 'success',
+            'query_type': query_type,
+            'start_date': start_date,
+            'end_date': end_date,
+            'granularity': granularity if query_type == 'trends' else None,
+            'data': data,
+            'count': len(data),
+            'timestamp': datetime.now().isoformat()
+        }), 200
+
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'traceback': traceback.format_exc(),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+
+@app.route('/reports/custom', methods=['GET'])
+def get_custom_report():
+    """
+    取得自訂報表端點
+
+    參數:
+        start_date: 起始日期 (YYYY-MM-DD)
+        end_date: 結束日期 (YYYY-MM-DD)
+        granularity: 粒度 (daily/weekly/monthly, 預設: weekly)
+
+    範例:
+        /reports/custom?start_date=2025-11-01&end_date=2025-11-30&granularity=weekly
+    """
+    try:
+        from analytics import query_analytics
+
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        granularity = request.args.get('granularity', 'weekly')
+
+        # 預設最近 30 天
+        if not start_date or not end_date:
+            end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+            start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+
+        conn = query_analytics.get_connection()
+        report_text = query_analytics.generate_custom_report(conn, start_date, end_date, granularity)
+        conn.close()
+
+        return jsonify({
+            'status': 'success',
+            'start_date': start_date,
+            'end_date': end_date,
+            'granularity': granularity,
+            'report': report_text,
+            'timestamp': datetime.now().isoformat()
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+
+@app.route('/export-sheets', methods=['POST'])
+def export_to_sheets():
+    """導出報表至 Google Sheets 端點"""
+    try:
+        import export_to_sheets as exporter
+
+        success = exporter.main()
 
         if success:
             return jsonify({
                 'status': 'success',
-                'message': '數據收集完成',
+                'message': '報表已成功導出至 Google Sheets',
                 'timestamp': datetime.now().isoformat()
             }), 200
         else:
             return jsonify({
                 'status': 'error',
-                'message': '數據收集失敗',
+                'message': '部分報表導出失敗',
                 'timestamp': datetime.now().isoformat()
             }), 500
 
@@ -491,10 +757,6 @@ def run_collection():
             'timestamp': datetime.now().isoformat()
         }), 500
 
-@app.route('/health', methods=['GET'])
-def health_check():
-    """健康檢查端點"""
-    return jsonify({'status': 'healthy'}), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
