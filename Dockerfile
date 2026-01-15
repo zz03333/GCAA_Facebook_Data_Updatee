@@ -10,8 +10,16 @@ COPY requirements.txt .
 # 安裝依賴套件
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 複製應用程式程式碼
+# 複製所有必要的 Python 檔案和目錄
 COPY main.py .
+COPY run_pipeline.py .
+COPY utils/ ./utils/
+COPY collectors/ ./collectors/
+COPY analytics/ ./analytics/
+COPY exporters/ ./exporters/
+
+# 複製資料庫（如果存在）
+COPY engagement_data.db* ./
 
 # 設定環境變數
 ENV PORT=8080
