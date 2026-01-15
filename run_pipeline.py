@@ -339,8 +339,8 @@ def main():
         print("\n✗ API 連接失敗，中止執行")
         return False
 
-    # Step 1: 收集頁面數據
-    collect_page_data(days_back=7)
+    # Step 1: 收集頁面數據 (至少 3 個月)
+    collect_page_data(days_back=90)
 
     # Step 2: 收集貼文數據 (30天內每日追蹤，舊貼文補收一次)
     if not collect_post_data():

@@ -658,7 +658,7 @@ def export_raw_post_insights(client, conn):
                    '讚', '愛心', '哇', '哈哈', '嗚嗚', '怒']
 
         cursor = conn.cursor()
-        # 只取最近 30 天的快照紀錄（動態日期，避免 hard-coded 未來日期）
+        # 取得所有快照紀錄（移除時間限制，顯示完整歷史數據）
         cursor.execute("""
             SELECT
                 p.post_id, p.created_time, p.permalink_url,
@@ -670,7 +670,6 @@ def export_raw_post_insights(client, conn):
                 i.post_reactions_sorry_total, i.post_reactions_anger_total
             FROM post_insights_snapshots i
             JOIN posts p ON i.post_id = p.post_id
-            WHERE i.fetch_date >= DATE('now', '-30 days')
             ORDER BY p.created_time DESC, i.fetch_date DESC
         """)
         rows_data = cursor.fetchall()
