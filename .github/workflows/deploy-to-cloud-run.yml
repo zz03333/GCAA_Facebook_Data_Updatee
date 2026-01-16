@@ -58,7 +58,7 @@ jobs:
           --region ${{ env.REGION }} \
           --allow-unauthenticated \
           --memory 512Mi \
-          --timeout 540 \
+          --timeout 900 \
           --set-env-vars "GCP_SA_CREDENTIALS_BASE64=${GCP_SA_BASE64}" \
           --set-env-vars "FACEBOOK_ACCESS_TOKEN_BASE64=${FB_TOKEN_BASE64}" \
           --project ${{ env.PROJECT_ID }}

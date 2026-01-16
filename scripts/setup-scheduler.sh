@@ -38,6 +38,7 @@ if gcloud scheduler jobs describe ${SCHEDULER_NAME} \
         --uri="${SERVICE_URL}/" \
         --http-method=POST \
         --time-zone="Asia/Taipei" \
+        --attempt-deadline=900s \
         --project=${PROJECT_ID}
 else
     echo "建立新的排程..."
@@ -47,6 +48,7 @@ else
         --uri="${SERVICE_URL}/" \
         --http-method=POST \
         --time-zone="Asia/Taipei" \
+        --attempt-deadline=900s \
         --project=${PROJECT_ID}
 fi
 
