@@ -248,24 +248,30 @@ def sync_daily_metrics_to_firestore(db_conn: sqlite3.Connection, firestore_db: A
     cursor = db_conn.cursor()
 
     # Calculate daily metrics from posts
+    # Note: Use SUBSTR for date extraction since SQLite DATE() doesn't handle timezone format
+    # Calculate engagement rate directly from raw data for accuracy
     cursor.execute("""
         SELECT
-            DATE(p.created_time) as date,
+            SUBSTR(p.created_time, 1, 10) as date,
             COUNT(*) as post_count,
             SUM(i.post_impressions_unique) as total_reach,
             SUM(i.likes_count + i.comments_count + i.shares_count) as total_engagement,
-            AVG(pp.engagement_rate) as avg_engagement_rate,
+            AVG(
+                CASE WHEN i.post_impressions_unique > 0
+                THEN (i.likes_count + i.comments_count + i.shares_count) * 100.0 / i.post_impressions_unique
+                ELSE 0 END
+            ) as avg_engagement_rate,
             SUM(i.shares_count) as total_shares,
             SUM(i.post_clicks) as total_clicks
         FROM posts p
         JOIN post_insights_snapshots i ON p.post_id = i.post_id
-        JOIN posts_performance pp ON p.post_id = pp.post_id
-        WHERE i.fetch_date = (
-            SELECT MAX(fetch_date)
+        WHERE (i.post_id, i.fetch_date) IN (
+            SELECT post_id, MAX(fetch_date)
             FROM post_insights_snapshots
-            WHERE post_id = p.post_id
+            GROUP BY post_id
         )
-        GROUP BY DATE(p.created_time)
+        AND p.created_time IS NOT NULL
+        GROUP BY SUBSTR(p.created_time, 1, 10)
         ORDER BY date DESC
         LIMIT 365
     """)
