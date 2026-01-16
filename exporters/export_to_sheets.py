@@ -19,22 +19,6 @@ from analytics import analytics_reports, analytics_trends, ad_predictor
 
 
 
-def add_timestamp_column(data):
-    """Add 'data_updated_at' timestamp column to all rows"""
-    if not data:
-        return data
-    
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    
-    # Add header to first row
-    if data and len(data) > 0:
-        data[0].append('data_updated_at')
-        
-        # Add timestamp to all data rows  
-        for i in range(1, len(data)):
-            data[i].append(timestamp)
-    
-    return data
 
 
 # Google Sheets 設定
@@ -2276,8 +2260,8 @@ def export_tab_documentation(client):
             
             ['', '', '', '', ''],
             ['使用說明', '', '', '', ''],
-            ['1. 每個 tab 右側最後一欄會顯示「data_updated_at」時間戳記', '', '', '', ''],
-            ['2. 資料每日自動更新（透過 Cloud Run + Cloud Scheduler）', '', '', '', ''],
+            ['1. 資料每日自動更新（透過 Cloud Run + Cloud Scheduler）', '', '', '', ''],
+            ['2. 更新時間請見 system_info 分頁', '', '', '', ''],
             ['3. Raw data tabs 保留完整歷史記錄，analytics tabs 基於最新快照計算', '', '', '', ''],
             ['4. 若某個 tab 資料為空，代表沒有符合條件的資料（例如近期無投廣）', '', '', '', ''],
             ['', '', '', '', ''],
@@ -2866,6 +2850,11 @@ def export_system_info(client, conn):
         worksheet.clear()
         rows = []
 
+        # === Section 0: 資料更新時間 ===
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        rows.append(['📅 資料更新時間', timestamp, '', '', ''])
+        rows.append(['', '', '', '', ''])
+
         # === Section 1: Tab 說明 ===
         rows.append(['📖 分頁說明', '', '', '', ''])
         rows.append(['分頁名稱', '類別', '說明', '更新頻率', '主要欄位'])
@@ -2930,8 +2919,8 @@ def export_system_info(client, conn):
 
         # === Section 4: 使用說明 ===
         rows.append(['📋 使用說明', '', '', '', ''])
-        rows.append(['1. 每個分頁右側最後一欄顯示「data_updated_at」更新時間', '', '', '', ''])
-        rows.append(['2. 資料每日自動更新（透過 Cloud Run + Cloud Scheduler）', '', '', '', ''])
+        rows.append(['1. 資料每日自動更新（透過 Cloud Run + Cloud Scheduler）', '', '', '', ''])
+        rows.append(['2. 更新時間請見 system_info 分頁', '', '', '', ''])
         rows.append(['3. 原始資料分頁保留完整歷史記錄，分析分頁基於最新快照計算', '', '', '', ''])
         rows.append(['4. 若某個分頁資料為空，代表沒有符合條件的資料', '', '', '', ''])
 
