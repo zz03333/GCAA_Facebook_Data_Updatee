@@ -28,7 +28,7 @@ def get_facebook_token():
     elif token:
         return token
     else:
-        return 'EAAPbnmTSpmoBQEIJ3H6KCC1ZA6YFROcXcZAHJAhf2g8eoG4cyParQdkxKXRYyb8ww9vFGIDogWbDqO8kAwY9aVjrV0zfJdqNuDQDLA5JiKas095i3od2NZCHLAgMTo7CFf9kXGza1okttRrAPHZBe70GXUEAlnzh1yZBFIHPmFFkTImusaTBN6F94uIeNsFZBfjD8ms9kZD'
+        return 'EAAPbnmTSpmoBQaz8PQJU8jTcLhsmMaB8cq9pYrvsHeAuzncRMgbRpWauF9vtQLNalTJd4X4idcvdTrFliXZCzxrzZCa9CvXRMCWYf8H4NFy4Fq8aay0G20ZCUxXEneQ0WGfOZBWDGfqJMC64WxwzLHAY3g3REJdmqNZCUPSC4ac6VX8Lu8SzXktQ3dERX4r1C'
 
 FACEBOOK_CONFIG = {
     'app_id': '1085898272974442',

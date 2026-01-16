@@ -4,5 +4,7 @@ gspread==6.2.1
 google-auth==2.38.0
 google-auth-oauthlib==1.2.2
 google-auth-httplib2==0.2.0
+google-api-python-client==2.154.0
 Flask==3.1.0
 gunicorn==23.0.0
+firebase-admin==6.3.0

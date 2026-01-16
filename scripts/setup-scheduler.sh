@@ -5,7 +5,7 @@
 
 set -e
 
-PROJECT_ID="401828143560"
+PROJECT_ID="gemini-api-reports"
 SERVICE_NAME="facebook-insights-collector"
 REGION="asia-east1"
 SCHEDULER_NAME="facebook-insights-daily-collection"

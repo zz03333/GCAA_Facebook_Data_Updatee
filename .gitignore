@@ -34,3 +34,10 @@ dist/
 
 # Logs
 *.log
+
+# Database files
+data/*.db
+data/backups/*.db*
+
+# Archive folder
+archive/

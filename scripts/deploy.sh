@@ -6,7 +6,7 @@ set -e  # 發生錯誤時立即停止
 
 # ==================== 設定區 ====================
 
-PROJECT_ID="401828143560"  # 你的 GCP Project ID
+PROJECT_ID="gemini-api-reports"  # 你的 GCP Project ID
 SERVICE_NAME="facebook-insights-collector"
 REGION="asia-east1"  # 台灣區域
 IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"

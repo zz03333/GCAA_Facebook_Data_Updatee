@@ -21,7 +21,9 @@ except ImportError:
 
 def get_connection():
     """Get SQLite database connection"""
-    db_path = os.path.join(os.path.dirname(__file__), 'engagement_data.db')
+    # Go up one level from exporters/ to project root, then into data/
+    project_root = os.path.dirname(os.path.dirname(__file__))
+    db_path = os.path.join(project_root, 'data', 'engagement_data.db')
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
