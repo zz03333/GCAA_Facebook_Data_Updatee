@@ -25,7 +25,7 @@ const CONFIG = {
     // Google Sheets settings (same as frontend config.js)
     sheets: {
         spreadsheetId: '1HJXQrlB0eYJsHmioLMNfCKV_OXHqqgwtwRtO9s5qbB0',
-        apiKey: '***REMOVED***', // For fallback
+        // API key removed - this script uses service account credentials
         sheetNames: {
             weeklyTrends: 'weekly_trends',
             formatType: 'format_type_performance',
