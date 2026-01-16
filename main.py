@@ -44,30 +44,23 @@ GOOGLE_SHEETS_CONFIG = {
 }
 
 # 貼文層級 Insights 指標
-# 更新日期: 2026-01-15 - 新增互動與觸及指標
-POST_INSIGHTS_METRICS = [
-    # 貼文互動指標
-    'post_clicks',
-    'post_engaged_users',           # 新增: 與貼文互動的不重複用戶數
-    'post_negative_feedback',       # 新增: 負面回饋次數
-    # 貼文觸及指標
-    'post_impressions_unique',
-    'post_impressions_fan_unique',  # 新增: 粉絲觸及人數
-    'post_impressions_viral_unique', # 新增: 病毒式觸及人數
-    # 'post_impressions',  # ✗ 已棄用
-    # 'post_impressions_organic',  # ✗ 已棄用
-    # 'post_impressions_paid',  # ✗ 已棄用
-    # 貼文心情反應指標
-    'post_reactions_like_total',
-    'post_reactions_love_total',
-    'post_reactions_wow_total',
-    'post_reactions_haha_total',
-    'post_reactions_sorry_total',
-    'post_reactions_anger_total',
-    # 影片相關指標
-    'post_video_views',
-    'post_video_views_organic',
-    'post_video_views_paid',
+# 更新日期: 2026-01-16 - 使用 config.POST_METRICS 統一管理
+# 注意: 以下指標已被 Facebook 棄用，不應使用：
+#   - post_engaged_users, post_negative_feedback
+#   - post_impressions_fan_unique, post_impressions_viral_unique
+#   - post_impressions, post_impressions_organic, post_impressions_paid
+from utils.config import POST_METRICS
+POST_INSIGHTS_METRICS = POST_METRICS  # 使用 config.py 的統一定義
+
+# 保留原有列表作為參考 (已棄用)
+_DEPRECATED_METRICS = [
+    'post_engaged_users',           # ✗ 已棄用
+    'post_negative_feedback',       # ✗ 已棄用
+    'post_impressions_fan_unique',  # ✗ 已棄用
+    'post_impressions_viral_unique', # ✗ 已棄用
+    'post_impressions',             # ✗ 已棄用
+    'post_impressions_organic',     # ✗ 已棄用
+    'post_impressions_paid',        # ✗ 已棄用
 ]
 
 # ==================== 核心功能函式 ====================

@@ -41,3 +41,4 @@ data/backups/*.db*
 
 # Archive folder
 archive/
+*.db

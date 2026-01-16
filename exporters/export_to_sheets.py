@@ -16,7 +16,6 @@ import base64
 import re
 from datetime import datetime, timedelta
 from analytics import analytics_reports, analytics_trends, ad_predictor
-from utils.config import DB_PATH
 
 
 
@@ -180,31 +179,50 @@ def translate_performance_tier(code):
     return PERFORMANCE_TIER_CHINESE.get(code, code or '未評級')
 
 
+# Credential file path (relative to this file)
+CREDENTIALS_FILE = Path(__file__).parent.parent / 'fb-dashboard' / 'esg-reports-collection-9661012923ed.json'
+
 def setup_google_sheets_client():
-    """設定 Google Sheets 客戶端"""
+    """設定 Google Sheets 客戶端
+
+    優先順序:
+    1. 本地 JSON 憑證檔案 (CREDENTIALS_FILE)
+    2. 環境變數 GCP_SA_CREDENTIALS (JSON 字串)
+    3. 環境變數 GCP_SA_CREDENTIALS_BASE64 (Base64 編碼)
+    """
     try:
+        scope = [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive'
+        ]
+
+        # Priority 1: Load from local JSON file
+        if CREDENTIALS_FILE.exists():
+            print(f"  使用憑證檔案: {CREDENTIALS_FILE.name}")
+            credentials = service_account.Credentials.from_service_account_file(
+                str(CREDENTIALS_FILE), scopes=scope)
+            client = gspread.authorize(credentials)
+            print("✓ Google Sheets 客戶端設定成功 (檔案憑證)")
+            return client
+
+        # Priority 2 & 3: Load from environment variables
         credentials_json = os.environ.get('GCP_SA_CREDENTIALS')
         credentials_base64 = os.environ.get('GCP_SA_CREDENTIALS_BASE64')
 
         if credentials_base64:
             credentials_json = base64.b64decode(credentials_base64).decode('utf-8')
         elif not credentials_json:
-            print("⚠️  找不到 Google Sheets 憑證環境變數")
-            print("   請設定 GCP_SA_CREDENTIALS 或 GCP_SA_CREDENTIALS_BASE64")
+            print("⚠️  找不到 Google Sheets 憑證")
+            print(f"   嘗試的憑證檔案路徑: {CREDENTIALS_FILE}")
+            print("   或設定環境變數: GCP_SA_CREDENTIALS / GCP_SA_CREDENTIALS_BASE64")
             return None
 
         credentials_dict = json.loads(credentials_json)
-
-        scope = [
-            'https://www.googleapis.com/auth/spreadsheets',
-            'https://www.googleapis.com/auth/drive'
-        ]
-
         credentials = service_account.Credentials.from_service_account_info(
             credentials_dict, scopes=scope)
 
         client = gspread.authorize(credentials)
-        print("✓ Google Sheets 客戶端設定成功")
+        print("✓ Google Sheets 客戶端設定成功 (環境變數)")
         return client
 
     except Exception as e:
@@ -641,68 +659,92 @@ def export_raw_posts(client, conn):
 
 
 def export_raw_post_insights(client, conn):
-    """導出 post_insights_snapshots 表原始資料 (完整重寫模式，保留發布後 30 天內紀錄)"""
+    """導出貼文完整資料 (合併 posts + post_insights_snapshots + posts_classification)"""
     try:
         spreadsheet = client.open(SPREADSHEET_NAME)
 
         try:
             worksheet = spreadsheet.worksheet('raw_post_insights')
         except gspread.exceptions.WorksheetNotFound:
-            worksheet = spreadsheet.add_worksheet(title='raw_post_insights', rows=5000, cols=20)
+            worksheet = spreadsheet.add_worksheet(title='raw_post_insights', rows=1000, cols=25)
 
-        # 清除所有資料並重寫（避免欄位錯位問題）
         worksheet.clear()
 
-        headers = ['Post ID', '發布時間 (GMT+8)', '貼文連結', '抓取日期', '讚數', '留言數', '分享數',
-                   '點擊數', '觸及人數', '影片觀看', '自然觀看', '付費觀看',
-                   '讚', '愛心', '哇', '哈哈', '嗚嗚', '怒']
+        # 合併欄位：基本資訊 + 分類 + 互動數據
+        headers = [
+            'Post ID', '發布時間 (GMT+8)', '內容預覽', '行動類型', '議題類型',
+            '總讚數', '留言數', '分享數', '點擊數', '觸及人數',
+            '影片觀看', '自然觀看', '付費觀看',
+            '👍反應', '❤️反應', '😮反應', '😆反應', '😢反應', '😠反應',
+            '貼文連結'
+        ]
 
         cursor = conn.cursor()
-        # 取得所有快照紀錄（移除時間限制，顯示完整歷史數據）
+        # 合併 posts + post_insights_snapshots + posts_classification
         cursor.execute("""
+            WITH latest_snapshots AS (
+                SELECT post_id, MAX(fetch_date) as latest_date
+                FROM post_insights_snapshots
+                GROUP BY post_id
+            )
             SELECT
-                p.post_id, p.created_time, p.permalink_url,
-                i.fetch_date, i.likes_count, i.comments_count, i.shares_count,
+                p.post_id, p.created_time, SUBSTR(p.message, 1, 100) as message_preview,
+                pc.format_type, pc.issue_topic,
+                i.likes_count, i.comments_count, i.shares_count,
                 i.post_clicks, i.post_impressions_unique,
                 i.post_video_views, i.post_video_views_organic, i.post_video_views_paid,
                 i.post_reactions_like_total, i.post_reactions_love_total,
                 i.post_reactions_wow_total, i.post_reactions_haha_total,
-                i.post_reactions_sorry_total, i.post_reactions_anger_total
+                i.post_reactions_sorry_total, i.post_reactions_anger_total,
+                p.permalink_url
             FROM post_insights_snapshots i
+            JOIN latest_snapshots ls ON i.post_id = ls.post_id AND i.fetch_date = ls.latest_date
             JOIN posts p ON i.post_id = p.post_id
-            ORDER BY p.created_time DESC, i.fetch_date DESC
+            LEFT JOIN posts_classification pc ON p.post_id = pc.post_id
+            ORDER BY p.created_time DESC
         """)
         rows_data = cursor.fetchall()
 
-        # 建立所有資料列
+        # 行動/議題翻譯
+        format_map = {
+            'event': '定期活動', 'press': '記者會', 'statement': '聲明稿',
+            'opinion': '新聞觀點', 'op_ed': '投書', 'report': '報告發布',
+            'booth': '擺攤資訊', 'edu': '科普/Podcast', 'action': '行動號召'
+        }
+        issue_map = {
+            'nuclear': '核能發電', 'climate': '氣候問題', 'net_zero': '淨零政策',
+            'industry': '產業分析', 'renewable': '能源發展', 'other': '其他議題'
+        }
+
         rows = [headers]
         for row in rows_data:
             rows.append([
                 row[0],  # post_id
                 convert_to_gmt8(row[1]),  # created_time (GMT+8)
-                row[2] or '',  # permalink_url
-                row[3],  # fetch_date
-                row[4] or 0, row[5] or 0, row[6] or 0,  # likes, comments, shares
-                row[7] or 0, row[8] or 0,  # clicks, reach
-                row[9] or 0, row[10] or 0, row[11] or 0,  # video views
-                row[12] or 0, row[13] or 0, row[14] or 0, row[15] or 0, row[16] or 0, row[17] or 0  # reactions
+                (row[2] or '')[:100],  # message_preview
+                format_map.get(row[3], row[3] or ''),  # format_type
+                issue_map.get(row[4], row[4] or ''),  # issue_topic
+                row[5] or 0, row[6] or 0, row[7] or 0,  # likes, comments, shares
+                row[8] or 0, row[9] or 0,  # clicks, reach
+                row[10] or 0, row[11] or 0, row[12] or 0,  # video views
+                row[13] or 0, row[14] or 0, row[15] or 0, row[16] or 0, row[17] or 0, row[18] or 0,  # reactions
+                row[19] or ''  # permalink_url
             ])
 
-        # 批次寫入
         if rows:
             update_with_timestamp(worksheet, 'A1', rows)
 
-        # 格式化標題
-        worksheet.format('A1:R1', {
+        # 格式化標題 (21 columns including timestamp)
+        worksheet.format('A1:U1', {
             "backgroundColor": {"red": 0.2, "green": 0.6, "blue": 0.9},
             "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}
         })
 
-        print(f"  ✓ 已導出貼文洞察原始資料（{len(rows_data)} 筆）")
+        print(f"  ✓ 已導出貼文完整資料（{len(rows_data)} 筆，含分類與互動數據）")
         return True
 
     except Exception as e:
-        print(f"  ✗ 導出貼文洞察原始資料失敗: {e}")
+        print(f"  ✗ 導出貼文完整資料失敗: {e}")
         return False
 
 
@@ -766,6 +808,112 @@ def export_page_daily_metrics(client, conn):
 
     except Exception as e:
         print(f"  ✗ 導出頁面每日指標失敗: {e}")
+        return False
+
+
+def export_raw_ads(client, conn):
+    """導出廣告原始資料（ads + ad_insights 合併）"""
+    try:
+        spreadsheet = client.open(SPREADSHEET_NAME)
+
+        try:
+            worksheet = spreadsheet.worksheet('raw_ads')
+        except gspread.exceptions.WorksheetNotFound:
+            worksheet = spreadsheet.add_worksheet(title='raw_ads', rows=500, cols=18)
+
+        worksheet.clear()
+
+        cursor = conn.cursor()
+
+        # 檢查 ads 表是否存在
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='ads'")
+        if not cursor.fetchone():
+            headers = ['尚無廣告資料']
+            worksheet.update([headers], 'A1')
+            print("  ⊘ 廣告資料表尚未建立")
+            return True
+
+        # 合併 ads 與 ad_insights，取得最新數據
+        cursor.execute("""
+            WITH latest_insights AS (
+                SELECT ad_id, MAX(date_stop) as latest_date
+                FROM ad_insights
+                GROUP BY ad_id
+            )
+            SELECT
+                a.ad_id,
+                a.name as ad_name,
+                ac.name as campaign_name,
+                a.status,
+                a.post_id,
+                DATE(a.created_time) as created_date,
+                ai.date_start,
+                ai.date_stop,
+                COALESCE(ai.impressions, 0) as impressions,
+                COALESCE(ai.reach, 0) as reach,
+                COALESCE(ai.clicks, 0) as clicks,
+                COALESCE(ai.spend, 0) as spend,
+                COALESCE(ai.cpm, 0) as cpm,
+                COALESCE(ai.cpc, 0) as cpc,
+                COALESCE(ai.ctr, 0) as ctr
+            FROM ads a
+            LEFT JOIN ad_campaigns ac ON a.campaign_id = ac.campaign_id
+            LEFT JOIN latest_insights li ON a.ad_id = li.ad_id
+            LEFT JOIN ad_insights ai ON a.ad_id = ai.ad_id AND ai.date_stop = li.latest_date
+            ORDER BY ai.spend DESC NULLS LAST, a.created_time DESC
+        """)
+        rows_data = cursor.fetchall()
+
+        # 狀態翻譯
+        status_chinese = {
+            'ACTIVE': '運行中',
+            'PAUSED': '已暫停',
+            'DELETED': '已刪除',
+            'ARCHIVED': '已封存',
+            'PENDING_REVIEW': '審核中',
+            'DISAPPROVED': '未通過',
+        }
+
+        headers = [
+            '廣告 ID', '廣告名稱', '活動名稱', '狀態', '推廣貼文 ID', '建立日期',
+            '統計起始', '統計結束', '曝光數', '觸及人數', '點擊數',
+            '花費 (NT$)', 'CPM', 'CPC', 'CTR (%)'
+        ]
+        rows = [headers]
+
+        for row in rows_data:
+            rows.append([
+                row[0][-15:] if row[0] else '',  # ad_id
+                row[1] or '',  # ad_name
+                row[2] or '',  # campaign_name
+                status_chinese.get(row[3], row[3] or ''),  # status
+                row[4][-15:] if row[4] else '',  # post_id
+                row[5] or '',  # created_date
+                row[6] or '',  # date_start
+                row[7] or '',  # date_stop
+                row[8],  # impressions
+                row[9],  # reach
+                row[10],  # clicks
+                round(row[11], 2),  # spend
+                round(row[12], 2),  # cpm
+                round(row[13], 2),  # cpc
+                round(row[14], 2) if row[14] else 0  # ctr
+            ])
+
+        update_with_timestamp(worksheet, 'A1', rows)
+
+        worksheet.format('A1:O1', {
+            "backgroundColor": {"red": 0.8, "green": 0.4, "blue": 0.2},
+            "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}
+        })
+
+        print(f"  ✓ 已導出廣告原始資料（{len(rows_data)} 筆）")
+        return True
+
+    except Exception as e:
+        print(f"  ✗ 導出廣告原始資料失敗: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
@@ -979,20 +1127,11 @@ def export_ad_recommendations(client, conn, limit=50):
             ['議題', '行動', '時段', '星期', '樣本數', '平均互動率 (%)', '高表現數'],
         ]
 
-        time_slot_map = {
-            'morning': '早晨 (6-12)',
-            'noon': '中午 (12-15)',
-            'afternoon': '下午 (15-18)',
-            'evening': '晚間 (18-23)',
-            'night': '深夜 (23-6)',
-            None: '未分類'
-        }
-
         for combo in best_combos:
             rows.append([
                 translate_issue_topic(combo[0]),
                 translate_format_type(combo[1]),
-                time_slot_map.get(combo[2], combo[2] or '未分類'),
+                translate_time_slot(combo[2]),
                 combo[3] or '未分類',
                 combo[4],
                 combo[5],
@@ -2111,8 +2250,730 @@ def export_tab_documentation(client):
         return False
 
 
+# ==================== 整合導出函數 ====================
+
+def export_content_analysis(client, conn):
+    """整合導出: 行動表現 + 議題表現 + 交叉分析"""
+    try:
+        spreadsheet = client.open(SPREADSHEET_NAME)
+
+        try:
+            worksheet = spreadsheet.worksheet('📊 content_analysis')
+        except gspread.exceptions.WorksheetNotFound:
+            worksheet = spreadsheet.add_worksheet(title='📊 content_analysis', rows=300, cols=15)
+
+        worksheet.clear()
+        rows = []
+
+        # === Section 1: 行動類型表現 ===
+        rows.append(['📌 行動類型表現分析', '', '', '', '', '', ''])
+        rows.append(['行動類型', '貼文數', '平均互動率 (%)', '平均分享率 (%)',
+                     '平均留言率 (%)', '熱門數 (前5%)', '優質數 (前25%)'])
+
+        format_data = analytics_reports.get_format_type_performance(conn)
+        for item in format_data:
+            rows.append([
+                translate_format_type(item['format_type']),
+                item['post_count'],
+                round(item['avg_er'], 2),
+                round(item['avg_share_rate'], 2),
+                round(item['avg_comment_rate'], 2),
+                item['viral_count'],
+                item['high_count']
+            ])
+
+        rows.append(['', '', '', '', '', '', ''])
+        rows.append(['', '', '', '', '', '', ''])
+
+        # === Section 2: 議題表現 ===
+        rows.append(['📌 議題表現分析', '', '', '', '', '', ''])
+        rows.append(['議題', '貼文數', '平均互動率 (%)', '平均分享率 (%)',
+                     '平均留言率 (%)', '熱門數 (前5%)', '優質數 (前25%)'])
+
+        issue_data = analytics_reports.get_issue_topic_performance(conn)
+        for item in issue_data:
+            rows.append([
+                translate_issue_topic(item['issue_topic']),
+                item['post_count'],
+                round(item['avg_er'], 2),
+                round(item['avg_share_rate'], 2),
+                round(item['avg_comment_rate'], 2),
+                item['viral_count'],
+                item['high_count']
+            ])
+
+        rows.append(['', '', '', '', '', '', ''])
+        rows.append(['', '', '', '', '', '', ''])
+
+        # === Section 3: 交叉分析 ===
+        rows.append(['📌 行動 × 議題交叉分析', '', '', '', '', ''])
+        rows.append(['行動', '議題', '貼文數', '平均互動率 (%)', '平均分享率 (%)', '高表現貼文數'])
+
+        cross_data = analytics_reports.get_format_issue_cross_performance(conn)
+        for item in cross_data:
+            rows.append([
+                translate_format_type(item['format_type']),
+                translate_issue_topic(item['issue_topic']),
+                item['post_count'],
+                round(item['avg_er'], 2),
+                round(item['avg_share_rate'], 2),
+                item['high_performer_count']
+            ])
+
+        update_with_timestamp(worksheet, 'A1', rows)
+
+        # 格式化各區塊標題
+        worksheet.format('A1:G1', {
+            "backgroundColor": {"red": 0.2, "green": 0.6, "blue": 0.9},
+            "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}, "fontSize": 12}
+        })
+
+        print(f"  ✓ 已導出內容分析（行動: {len(format_data)}, 議題: {len(issue_data)}, 交叉: {len(cross_data)}）")
+        return True
+
+    except Exception as e:
+        print(f"  ✗ 導出內容分析失敗: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def export_posting_times(client, conn):
+    """整合導出: 最佳發文時間 + 每小時表現 + 年度分析"""
+    try:
+        spreadsheet = client.open(SPREADSHEET_NAME)
+
+        try:
+            worksheet = spreadsheet.worksheet('⏰ posting_times')
+        except gspread.exceptions.WorksheetNotFound:
+            worksheet = spreadsheet.add_worksheet(title='⏰ posting_times', rows=400, cols=15)
+
+        worksheet.clear()
+        rows = []
+
+        time_slot_map = {
+            'morning': '早上 (6-12點)',
+            'noon': '中午 (12-15點)',
+            'afternoon': '下午 (15-18點)',
+            'evening': '晚上 (18-23點)',
+            'night': '深夜 (23-6點)'
+        }
+
+        # === Section 1: 整體最佳發文時間 ===
+        rows.append(['📊 整體最佳發文時間', '', '', '', ''])
+        rows.append(['時段', '星期', '貼文數', '平均互動率 (%)', '平均點擊率 (%)'])
+
+        data_general = analytics_reports.get_best_posting_times(conn, limit=20)
+        for item in data_general:
+            rows.append([
+                time_slot_map.get(item['time_slot'], item['time_slot']),
+                get_day_name_chinese(item['day_of_week']),
+                item['post_count'],
+                round(item['avg_er'], 2),
+                round(item['avg_ctr'], 2)
+            ])
+
+        rows.append(['', '', '', '', ''])
+        rows.append(['', '', '', '', ''])
+
+        # === Section 2: 按議題分組 ===
+        rows.append(['📌 按議題分組', '', '', '', '', ''])
+        rows.append(['議題', '時段', '星期', '貼文數', '平均互動率 (%)', '平均點擊率 (%)'])
+
+        data_topic = analytics_reports.get_best_posting_times_by_topic(conn, limit=50)
+        for item in data_topic:
+            rows.append([
+                translate_issue_topic(item['issue_topic']),
+                time_slot_map.get(item['time_slot'], item['time_slot']),
+                get_day_name_chinese(item['day_of_week']),
+                item['post_count'],
+                round(item['avg_er'], 2),
+                round(item['avg_ctr'], 2)
+            ])
+
+        rows.append(['', '', '', '', '', ''])
+        rows.append(['', '', '', '', '', ''])
+
+        # === Section 3: 按行動分組 ===
+        rows.append(['🎯 按行動分組', '', '', '', '', ''])
+        rows.append(['行動', '時段', '星期', '貼文數', '平均互動率 (%)', '平均點擊率 (%)'])
+
+        data_format = analytics_reports.get_best_posting_times_by_format(conn, limit=50)
+        for item in data_format:
+            rows.append([
+                translate_format_type(item['format_type']),
+                time_slot_map.get(item['time_slot'], item['time_slot']),
+                get_day_name_chinese(item['day_of_week']),
+                item['post_count'],
+                round(item['avg_er'], 2),
+                round(item['avg_ctr'], 2)
+            ])
+
+        rows.append(['', '', '', '', '', ''])
+        rows.append(['', '', '', '', '', ''])
+
+        # === Section 4: 每小時表現 ===
+        rows.append(['🕐 每小時表現統計', '', '', ''])
+        rows.append(['時間', '貼文數', '平均互動率 (%)', '平均點擊率 (%)'])
+
+        hourly_data = analytics_reports.get_hourly_performance(conn)
+        for item in hourly_data:
+            rows.append([
+                hour_to_12h_format(item['hour_of_day']),
+                item['post_count'],
+                round(item['avg_er'], 2),
+                round(item['avg_ctr'], 2)
+            ])
+
+        rows.append(['', '', '', ''])
+        rows.append(['', '', '', ''])
+
+        # === Section 5: 年度發文分析 ===
+        rows.append(['📅 年度發文時間分析', '', '', '', '', '', '', '', '', ''])
+        rows.append(['年份', '月份', '貼文數', '00-06時', '06-09時', '09-12時', '12-15時', '15-18時', '18-21時', '21-24時'])
+
+        cursor = conn.cursor()
+        cursor.execute("""
+            WITH hourly_posts AS (
+                SELECT
+                    strftime('%Y', created_time) as year,
+                    strftime('%m', created_time) as month,
+                    CAST(strftime('%H', created_time) AS INTEGER) as hour,
+                    post_id
+                FROM posts
+            )
+            SELECT
+                year, month,
+                COUNT(*) as total_posts,
+                SUM(CASE WHEN hour BETWEEN 0 AND 5 THEN 1 ELSE 0 END) as h_00_06,
+                SUM(CASE WHEN hour BETWEEN 6 AND 8 THEN 1 ELSE 0 END) as h_06_09,
+                SUM(CASE WHEN hour BETWEEN 9 AND 11 THEN 1 ELSE 0 END) as h_09_12,
+                SUM(CASE WHEN hour BETWEEN 12 AND 14 THEN 1 ELSE 0 END) as h_12_15,
+                SUM(CASE WHEN hour BETWEEN 15 AND 17 THEN 1 ELSE 0 END) as h_15_18,
+                SUM(CASE WHEN hour BETWEEN 18 AND 20 THEN 1 ELSE 0 END) as h_18_21,
+                SUM(CASE WHEN hour BETWEEN 21 AND 23 THEN 1 ELSE 0 END) as h_21_24
+            FROM hourly_posts
+            GROUP BY year, month
+            ORDER BY year DESC, month DESC
+        """)
+        yearly_data = cursor.fetchall()
+
+        for row in yearly_data:
+            rows.append([
+                row[0], row[1], row[2],
+                row[3] or 0, row[4] or 0, row[5] or 0, row[6] or 0,
+                row[7] or 0, row[8] or 0, row[9] or 0
+            ])
+
+        update_with_timestamp(worksheet, 'A1', rows)
+
+        worksheet.format('A1:E1', {
+            "backgroundColor": {"red": 0.9, "green": 0.5, "blue": 0.2},
+            "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}, "fontSize": 12}
+        })
+
+        print(f"  ✓ 已導出發文時間分析（整體: {len(data_general)}, 議題: {len(data_topic)}, 行動: {len(data_format)}, 每小時: {len(hourly_data)}, 年度: {len(yearly_data)}）")
+        return True
+
+    except Exception as e:
+        print(f"  ✗ 導出發文時間分析失敗: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def export_posts_performance(client, conn):
+    """整合導出: Top 貼文 + 象限分析 + 深度指標 + 週趨勢"""
+    try:
+        spreadsheet = client.open(SPREADSHEET_NAME)
+
+        try:
+            worksheet = spreadsheet.worksheet('📈 posts_performance')
+        except gspread.exceptions.WorksheetNotFound:
+            worksheet = spreadsheet.add_worksheet(title='📈 posts_performance', rows=500, cols=20)
+
+        worksheet.clear()
+        rows = []
+
+        # === Section 1: Top 貼文 ===
+        rows.append(['🏆 Top 100 貼文排行', '', '', '', '', '', '', '', '', '', '', ''])
+        rows.append(['貼文 ID', '內容預覽', '發布日期', '行動', '議題', '時段',
+                     '互動率 (%)', '表現等級', '百分位數', '觸及', '總互動數', '連結'])
+
+        top_data = analytics_reports.get_top_posts(conn, days=365, limit=100)
+        for item in top_data:
+            rows.append([
+                item['post_id'][-15:],
+                (item['message_preview'] or '')[:50],
+                convert_to_gmt8(item['created_time'])[:10],
+                translate_format_type(item['topic_primary']),
+                translate_issue_topic(item.get('issue_topic')),
+                translate_time_slot(item['time_slot']),
+                round(item['engagement_rate'], 2),
+                translate_performance_tier(item['performance_tier']),
+                round(item['percentile_rank'], 1),
+                item['reach'],
+                item['total_engagement'],
+                item.get('permalink_url', '')
+            ])
+
+        rows.append(['', '', '', '', '', '', '', '', '', '', '', ''])
+        rows.append(['', '', '', '', '', '', '', '', '', '', '', ''])
+
+        # === Section 2: 象限分析 ===
+        rows.append(['📊 象限分析 (Viral/High/Average/Low)', '', '', '', '', '', '', '', '', '', ''])
+        rows.append(['貼文 ID', '發布日期', '觸及人數', '互動率 (%)',
+                     '中位數觸及', '中位數互動率 (%)', '象限', '議題', '行動', '內容預覽', '連結'])
+
+        quadrant_data = analytics_reports.get_quadrant_analysis(conn)
+        for item in quadrant_data:
+            rows.append([
+                item['post_id'][-18:],
+                convert_to_gmt8(item['created_time'])[:10],
+                item['reach'],
+                round(item['engagement_rate'] * 100, 2),
+                item['median_reach'],
+                round(item['median_er'] * 100, 2),
+                item['quadrant'],
+                translate_issue_topic(item['topic_tag']),
+                translate_format_type(item['format_type']),
+                (item['content_short'] or '')[:40],
+                item['permalink_url'] or ''
+            ])
+
+        rows.append(['', '', '', '', '', '', '', '', '', '', ''])
+        rows.append(['', '', '', '', '', '', '', '', '', '', ''])
+
+        # === Section 3: 週趨勢 ===
+        rows.append(['📈 週度趨勢 (近兩年)', '', '', '', ''])
+        rows.append(['週次 (日期範圍)', '貼文數', '平均互動率 (%)', '總觸及', '總互動數'])
+
+        weekly_data = analytics_reports.get_weekly_trends(conn, weeks=104)
+        for item in weekly_data:
+            week_range = f"{item.get('week_start', '')} ~ {item.get('week_end', '')}"
+            rows.append([
+                week_range,
+                item['post_count'],
+                round(item['avg_er'], 2),
+                item['total_reach'],
+                item['total_engagement']
+            ])
+
+        update_with_timestamp(worksheet, 'A1', rows)
+
+        worksheet.format('A1:L1', {
+            "backgroundColor": {"red": 0.2, "green": 0.6, "blue": 0.9},
+            "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}, "fontSize": 12}
+        })
+
+        print(f"  ✓ 已導出貼文表現分析（Top: {len(top_data)}, 象限: {len(quadrant_data)}, 週趨勢: {len(weekly_data)}）")
+        return True
+
+    except Exception as e:
+        print(f"  ✗ 導出貼文表現分析失敗: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def export_ad_analytics(client, conn):
+    """整合導出: 投廣建議 + 熱門貼文 + 自然vs付費 + 廣告活動 + ROI"""
+    try:
+        spreadsheet = client.open(SPREADSHEET_NAME)
+
+        try:
+            worksheet = spreadsheet.worksheet('💰 ad_analytics')
+        except gspread.exceptions.WorksheetNotFound:
+            worksheet = spreadsheet.add_worksheet(title='💰 ad_analytics', rows=800, cols=20)
+
+        worksheet.clear()
+        rows = []
+
+        # === Section 1: 近期熱門貼文 ===
+        rows.append(['🔥 近期熱門貼文 (72小時內)', '', '', '', '', '', '', ''])
+        rows.append(['貼文 ID', '內容預覽', '發布時間', '已發布小時數',
+                     '當前互動數', '觸及', '每小時互動', '互動率 (%)'])
+
+        trending = analytics_trends.get_trending_posts(conn, hours=72)
+        for item in trending:
+            rows.append([
+                item['post_id'][-15:],
+                (item['message_preview'] or '')[:50],
+                item['created_time'][:16] if item['created_time'] else '',
+                item['hours_since_post'],
+                item['current_engagement'],
+                item['reach'] or 0,
+                item['engagement_per_hour'],
+                item['engagement_rate']
+            ])
+
+        rows.append(['', '', '', '', '', '', '', ''])
+        rows.append(['', '', '', '', '', '', '', ''])
+
+        # === Section 2: 投廣推薦 ===
+        ad_predictor.update_all_ad_potentials(conn)
+
+        # 歷史最佳組合
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT
+                COALESCE(pc.issue_topic, '未分類') as issue_topic,
+                COALESCE(pc.format_type, '未分類') as format_type,
+                pc.time_slot,
+                CASE pc.day_of_week
+                    WHEN 0 THEN '週一' WHEN 1 THEN '週二' WHEN 2 THEN '週三'
+                    WHEN 3 THEN '週四' WHEN 4 THEN '週五' WHEN 5 THEN '週六' WHEN 6 THEN '週日'
+                END as day_name,
+                COUNT(*) as post_count,
+                ROUND(AVG(pp.engagement_rate), 2) as avg_er,
+                SUM(CASE WHEN pp.performance_tier IN ('viral', 'high') THEN 1 ELSE 0 END) as high_performers
+            FROM posts_classification pc
+            JOIN posts_performance pp ON pc.post_id = pp.post_id
+            GROUP BY pc.issue_topic, pc.format_type, pc.time_slot, pc.day_of_week
+            HAVING post_count >= 3
+            ORDER BY avg_er DESC
+            LIMIT 15
+        """)
+        best_combos = cursor.fetchall()
+
+        rows.append(['📊 歷史最佳組合（供新內容投廣參考）', '', '', '', '', '', ''])
+        rows.append(['議題', '行動', '時段', '星期', '樣本數', '平均互動率 (%)', '高表現數'])
+
+        for combo in best_combos:
+            rows.append([
+                translate_issue_topic(combo[0]),
+                translate_format_type(combo[1]),
+                translate_time_slot(combo[2]),
+                combo[3] or '未分類',
+                combo[4],
+                combo[5],
+                combo[6]
+            ])
+
+        rows.append(['', '', '', '', '', '', ''])
+        rows.append(['', '', '', '', '', '', ''])
+
+        # 已發布貼文推薦
+        rows.append(['📌 已發布貼文投廣推薦', '', '', '', '', '', '', '', '', '', '', '', ''])
+        rows.append([
+            '貼文 ID', '發布時間', '投廣建議', '潛力分數', '表現等級',
+            '行動', '議題', '互動率分數', '分享率分數', '留言率分數',
+            '議題因子', '時段因子', '貼文連結'
+        ])
+
+        recommended = ad_predictor.get_recommended_posts(conn, limit=50, min_score=40)
+        for item in recommended:
+            breakdown = item.get('breakdown', {})
+            rows.append([
+                item['post_id'][-15:],
+                convert_to_gmt8(item.get('created_time', ''))[:10],
+                item['ad_recommendation'],
+                item['ad_potential_score'],
+                translate_performance_tier(item['performance_tier']),
+                translate_format_type(item['format_type']),
+                translate_issue_topic(item['issue_topic']),
+                round(breakdown.get('engagement_rate_score', 0), 1),
+                round(breakdown.get('share_rate_score', 0), 1),
+                round(breakdown.get('comment_rate_score', 0), 1),
+                breakdown.get('topic_factor', 1),
+                breakdown.get('time_factor', 1),
+                item.get('permalink_url', '')
+            ])
+
+        rows.append(['', '', '', '', '', '', '', '', '', '', '', '', ''])
+        rows.append(['', '', '', '', '', '', '', '', '', '', '', '', ''])
+
+        # === Section 3: 自然 vs 付費 ===
+        rows.append(['⚖️ 自然 vs 付費貼文成效比較', '', '', '', '', '', '', ''])
+
+        cursor.execute("""
+            WITH latest_snapshots AS (
+                SELECT post_id, MAX(fetch_date) as latest_date
+                FROM post_insights_snapshots
+                GROUP BY post_id
+            ),
+            promoted_posts AS (
+                SELECT DISTINCT post_id FROM ads WHERE post_id IS NOT NULL
+            )
+            SELECT
+                CASE WHEN pp.post_id IS NOT NULL THEN 'paid' ELSE 'organic' END as ad_status,
+                COUNT(*) as post_count,
+                ROUND(AVG(perf.engagement_rate), 2) as avg_er,
+                ROUND(AVG(perf.share_rate), 2) as avg_sr,
+                ROUND(AVG(perf.comment_rate), 2) as avg_cr,
+                ROUND(AVG(perf.click_through_rate), 2) as avg_ctr,
+                SUM(i.post_impressions_unique) as total_reach,
+                SUM(i.likes_count + i.comments_count + i.shares_count) as total_engagement
+            FROM posts p
+            JOIN latest_snapshots ls ON p.post_id = ls.post_id
+            JOIN post_insights_snapshots i ON p.post_id = i.post_id AND i.fetch_date = ls.latest_date
+            LEFT JOIN promoted_posts pp ON p.post_id = pp.post_id
+            LEFT JOIN posts_performance perf ON p.post_id = perf.post_id
+            GROUP BY ad_status
+        """)
+        summary_data = cursor.fetchall()
+
+        rows.append(['類型', '貼文數', '平均互動率 (%)', '平均分享率 (%)', '平均留言率 (%)', '平均點擊率 (%)', '總觸及', '總互動數'])
+        for row in summary_data:
+            status = '有廣告' if row[0] == 'paid' else '自然觸及'
+            rows.append([
+                status, row[1], row[2] or 0, row[3] or 0, row[4] or 0, row[5] or 0, row[6] or 0, row[7] or 0
+            ])
+
+        rows.append(['', '', '', '', '', '', '', ''])
+        rows.append(['', '', '', '', '', '', '', ''])
+
+        # === Section 4: 廣告活動清單 ===
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='ad_campaigns'")
+        if cursor.fetchone():
+            rows.append(['📋 廣告活動清單', '', '', '', '', '', '', '', '', '', '', ''])
+            rows.append([
+                '活動 ID', '活動名稱', '目標', '狀態', '每日預算 (NT$)', '總預算 (NT$)',
+                '建立日期', '廣告數', '總花費 (NT$)', '總曝光', '總點擊', '平均 CPC (NT$)'
+            ])
+
+            objective_chinese = {
+                'OUTCOME_AWARENESS': '品牌知名度',
+                'OUTCOME_ENGAGEMENT': '互動推廣',
+                'OUTCOME_TRAFFIC': '流量導引',
+                'OUTCOME_LEADS': '名單收集',
+                'OUTCOME_SALES': '銷售轉換',
+                'LINK_CLICKS': '連結點擊',
+                'POST_ENGAGEMENT': '貼文互動',
+                'PAGE_LIKES': '粉專按讚',
+            }
+
+            cursor.execute("""
+                SELECT
+                    ac.campaign_id,
+                    ac.name,
+                    ac.objective,
+                    ac.status,
+                    COALESCE(ac.daily_budget, 0) as daily_budget,
+                    COALESCE(ac.lifetime_budget, 0) as lifetime_budget,
+                    DATE(ac.created_time) as created_date,
+                    COUNT(DISTINCT a.ad_id) as ad_count,
+                    COALESCE(SUM(ai.spend), 0) as total_spend,
+                    COALESCE(SUM(ai.impressions), 0) as total_impressions,
+                    COALESCE(SUM(ai.clicks), 0) as total_clicks,
+                    CASE WHEN SUM(ai.clicks) > 0
+                         THEN ROUND(SUM(ai.spend) / SUM(ai.clicks), 2)
+                         ELSE 0 END as avg_cpc
+                FROM ad_campaigns ac
+                LEFT JOIN ads a ON ac.campaign_id = a.campaign_id
+                LEFT JOIN ad_insights ai ON a.ad_id = ai.ad_id
+                GROUP BY ac.campaign_id
+                ORDER BY total_spend DESC
+            """)
+            campaigns = cursor.fetchall()
+
+            for row in campaigns:
+                rows.append([
+                    row[0][-15:] if row[0] else '',
+                    row[1] or '',
+                    objective_chinese.get(row[2], row[2] or ''),
+                    row[3] or '',
+                    row[4], row[5],
+                    row[6] or '',
+                    row[7], row[8], row[9], row[10], row[11]
+                ])
+
+        update_with_timestamp(worksheet, 'A1', rows)
+
+        worksheet.format('A1:H1', {
+            "backgroundColor": {"red": 0.8, "green": 0.4, "blue": 0.2},
+            "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}, "fontSize": 12}
+        })
+
+        print(f"  ✓ 已導出投廣分析（熱門: {len(trending)}, 推薦: {len(recommended)}, 組合: {len(best_combos)}）")
+        return True
+
+    except Exception as e:
+        print(f"  ✗ 導出投廣分析失敗: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def export_system_info(client, conn):
+    """整合導出: Pipeline 紀錄 + Tab 說明"""
+    try:
+        spreadsheet = client.open(SPREADSHEET_NAME)
+
+        try:
+            worksheet = spreadsheet.worksheet('⚙️ system_info')
+        except gspread.exceptions.WorksheetNotFound:
+            worksheet = spreadsheet.add_worksheet(title='⚙️ system_info', rows=150, cols=10)
+
+        worksheet.clear()
+        rows = []
+
+        # === Section 1: Tab 說明 ===
+        rows.append(['📖 分頁說明', '', '', '', ''])
+        rows.append(['分頁名稱', '類別', '說明', '更新頻率', '主要欄位'])
+
+        docs = [
+            ['📦 raw_posts', '原始資料', '貼文基本資訊（ID、內容、發佈時間、連結等）', '每日', 'post_id, message, created_time'],
+            ['📦 raw_post_insights', '原始資料', '貼文洞察數據（每貼文最新快照）', '每日', 'post_id, likes, comments, shares, reach'],
+            ['📦 page_daily_metrics', '原始資料', '粉絲專頁每日指標（粉絲數、觸及、互動）', '每日', 'date, fan_count, page_impressions_unique'],
+            ['📦 raw_ads', '原始資料', '廣告原始資料（廣告 + 成效數據合併）', '每日', 'ad_id, impressions, reach, spend, cpc'],
+            ['📊 content_analysis', '內容分析', '行動類型表現 + 議題表現 + 交叉分析', '每日', 'format_type, issue_topic, avg_er'],
+            ['⏰ posting_times', '時間分析', '最佳發文時間 + 每小時表現 + 年度分析', '每日', 'time_slot, hour, avg_engagement_rate'],
+            ['📈 posts_performance', '貼文表現', 'Top 貼文 + 象限分析 + 週趨勢', '每日', 'post_id, engagement_rate, performance_tier'],
+            ['💰 ad_analytics', '投廣分析', '熱門貼文 + 投廣建議 + 自然vs付費 + 廣告活動', '每日', 'ad_potential_score, ad_recommendation'],
+            ['⚙️ system_info', '系統資訊', '分頁說明 + Pipeline 執行紀錄', '每日', 'run_date, status, duration'],
+        ]
+
+        for doc in docs:
+            rows.append(doc)
+
+        rows.append(['', '', '', '', ''])
+        rows.append(['', '', '', '', ''])
+
+        # === Section 2: 行動類型分類標準 ===
+        rows.append(['🎯 行動類型 (Format Type) 分類標準', '', '', ''])
+        rows.append(['代碼', '中文名稱', '說明', '匹配關鍵字（完整清單）'])
+
+        format_types = [
+            ['event', '定期活動', '影展、演講、座談會等定期舉辦的活動', '影展, 講座, 論壇, 工作坊, 分享會, 座談, 活動報名, 歡迎參加'],
+            ['press', '記者會', '召開記者會發布訊息', '記者會, 媒體, 採訪, 新聞稿'],
+            ['statement', '聲明稿', '公開發言或正式聲明', '聲明, 發言, 立場, 呼籲, 強調, 我們認為'],
+            ['opinion', '新聞觀點', '針對時事新聞的評論觀點', '觀點, 評論, 分析, 看法, 時事'],
+            ['op_ed', '投書', '綠盟投書至媒體的文章', '投書, 專欄, 刊登, 媒體投書'],
+            ['report', '報告發布', '研究報告或調查報告發布', '報告, 發布, 研究, 調查, 數據, 出爐'],
+            ['booth', '擺攤資訊', '擺攤活動或市集資訊', '擺攤, 市集, 現場, 來找我們'],
+            ['edu', '科普/Podcast', '科普文章或 Podcast 節目', '懶人包, Podcast, 科普, Q&A, 知識, 解說, 你知道嗎, 一次看懂'],
+            ['action', '行動號召', '連署、行動呼籲等', '連署, 捐款, 志工, 行動, 參與, 支持我們, 一起'],
+            ['(空白)', '其他行動', '無法歸類的其他內容', '（無關鍵字匹配時預設）'],
+        ]
+        for ft in format_types:
+            rows.append(ft)
+
+        rows.append(['', '', '', ''])
+        rows.append(['', '', '', ''])
+
+        # === Section 3: 議題分類標準 ===
+        rows.append(['📌 議題類型 (Issue Topic) 分類標準', '', '', ''])
+        rows.append(['代碼', '中文名稱', '說明', '匹配關鍵字（完整清單）'])
+
+        issue_topics = [
+            ['nuclear', '核能發電', '核電廠、核廢料、核能政策相關', '核電, 核能, 核四, 核廢, 核安, 輻射'],
+            ['climate', '氣候問題', '氣候變遷、極端氣候相關', '氣候, 暖化, 碳排, COP, 極端天氣, 氣候變遷'],
+            ['net_zero', '淨零政策', '2050淨零、減碳政策相關', '淨零, 碳中和, 2050, 淨零轉型, 減碳'],
+            ['industry', '產業分析', '產業碳排、企業責任相關', '產業, 企業, ESG, 永續, 供應鏈, 碳盤查'],
+            ['renewable', '能源發展', '再生能源、能源轉型相關', '光電, 風電, 再生能源, 綠電, 太陽能, 離岸風電, 屋頂, 公民電廠'],
+            ['other', '其他議題', '其他環境或公民議題', '勞動, 環評, 空污, 水資源, 生態'],
+        ]
+        for it in issue_topics:
+            rows.append(it)
+
+        rows.append(['', '', '', ''])
+        rows.append(['', '', '', ''])
+
+        # === Section 4: 使用說明 ===
+        rows.append(['📋 使用說明', '', '', '', ''])
+        rows.append(['1. 每個分頁右側最後一欄顯示「data_updated_at」更新時間', '', '', '', ''])
+        rows.append(['2. 資料每日自動更新（透過 Cloud Run + Cloud Scheduler）', '', '', '', ''])
+        rows.append(['3. 原始資料分頁保留完整歷史記錄，分析分頁基於最新快照計算', '', '', '', ''])
+        rows.append(['4. 若某個分頁資料為空，代表沒有符合條件的資料', '', '', '', ''])
+
+        rows.append(['', '', '', '', ''])
+        rows.append(['', '', '', '', ''])
+
+        # === Section 5: Pipeline 執行紀錄 ===
+        rows.append(['🔧 Pipeline 執行紀錄', '', '', '', '', '', '', '', ''])
+
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pipeline_runs'")
+        if cursor.fetchone():
+            cursor.execute("""
+                SELECT id, run_date, run_time, status,
+                       posts_collected, posts_analyzed, sheets_exported,
+                       error_message, duration_seconds
+                FROM pipeline_runs
+                ORDER BY run_date DESC, run_time DESC
+                LIMIT 30
+            """)
+            logs = cursor.fetchall()
+
+            rows.append(['執行 ID', '日期', '時間', '狀態', '收集貼文數',
+                         '分析貼文數', '匯出報表數', '錯誤訊息', '執行秒數'])
+            for log in logs:
+                rows.append(list(log))
+        else:
+            rows.append(['尚無執行紀錄', '', '', '', '', '', '', '', ''])
+
+        rows.append(['', '', '', '', '', '', '', '', ''])
+        rows.append(['', '', '', '', '', '', '', '', ''])
+
+        # === Section 6: 資料來源 ===
+        rows.append(['📡 資料來源', '', '', '', ''])
+        rows.append(['• Facebook Graph API v23.0', '', '', '', ''])
+        rows.append(['• 貼文資料：2024-01-01 至今', '', '', '', ''])
+        rows.append(['• Insights 資料：過去 90 天（Facebook API 限制）', '', '', '', ''])
+
+        update_with_timestamp(worksheet, 'A1', rows)
+
+        worksheet.format('A1:E1', {
+            "backgroundColor": {"red": 0.5, "green": 0.5, "blue": 0.5},
+            "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}, "fontSize": 12}
+        })
+
+        print(f"  ✓ 已導出系統資訊")
+        return True
+
+    except Exception as e:
+        print(f"  ✗ 導出系統資訊失敗: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def cleanup_old_tabs(client):
+    """刪除舊的不需要的分頁，只保留 9 個新分頁"""
+    try:
+        spreadsheet = client.open(SPREADSHEET_NAME)
+
+        # 要保留的分頁名稱
+        keep_tabs = {
+            'raw_posts',
+            'raw_post_insights',
+            'page_daily_metrics',
+            'raw_ads',
+            '📊 content_analysis',
+            '⏰ posting_times',
+            '📈 posts_performance',
+            '💰 ad_analytics',
+            '⚙️ system_info',
+        }
+
+        # 取得所有現有分頁
+        all_worksheets = spreadsheet.worksheets()
+
+        deleted_count = 0
+        for ws in all_worksheets:
+            if ws.title not in keep_tabs:
+                try:
+                    spreadsheet.del_worksheet(ws)
+                    print(f"  🗑️ 已刪除: {ws.title}")
+                    deleted_count += 1
+                except Exception as e:
+                    print(f"  ⚠️ 無法刪除 {ws.title}: {e}")
+
+        if deleted_count > 0:
+            print(f"  ✓ 已清理 {deleted_count} 個舊分頁")
+        else:
+            print("  ✓ 無需清理舊分頁")
+
+        return True
+
+    except Exception as e:
+        print(f"  ✗ 清理舊分頁失敗: {e}")
+        return False
+
+
 def main():
-    """主程式 - 導出所有分析報表"""
+    """主程式 - 導出所有分析報表（整合版：9 個分頁）"""
     print("\n" + "="*60)
     print("Facebook 分析報表導出至 Google Sheets")
     print("="*60)
@@ -2124,77 +2985,42 @@ def main():
         print("\n✗ 無法設定 Google Sheets 客戶端")
         return False
 
+    # 清理舊分頁
+    print("🧹 清理舊分頁:")
+    cleanup_old_tabs(client)
+
     # 連接資料庫
     conn = analytics_reports.get_connection()
 
     print("\n開始導出分析報表...\n")
 
-    # 導出各項報表
+    # 導出各項報表（整合版：9 個分頁）
     success_count = 0
-    total_count = 21  # 更新: 新增 yearly_posting_analysis, pipeline_logs, tab_documentation
+    total_count = 8  # raw_posts 已合併到 raw_post_insights
 
-    # 原始資料
+    # 📦 原始資料 (3 個分頁: raw_post_insights, page_daily_metrics, raw_ads)
     print("📦 原始資料導出:")
-    if export_raw_posts(client, conn):
-        success_count += 1
-    if export_raw_post_insights(client, conn):
+    if export_raw_post_insights(client, conn):  # 包含貼文基本資訊 + 分類 + 互動數據
         success_count += 1
     if export_page_daily_metrics(client, conn):
         success_count += 1
-
-    # 分析報表 - 新的雙維度分析
-    print("\n📊 分析報表導出:")
-    if export_best_posting_times(client, conn):
-        success_count += 1
-    if export_format_type_performance(client, conn):  # 主題表現
-        success_count += 1
-    if export_issue_topic_performance(client, conn):  # 議題表現
-        success_count += 1
-    if export_format_issue_cross(client, conn):       # 交叉分析
-        success_count += 1
-    if export_top_posts(client, conn, days=365, limit=100):
-        success_count += 1
-    if export_weekly_trends(client, conn, weeks=104):
-        success_count += 1
-    if export_hourly_performance(client, conn):
-        success_count += 1
-    if export_deep_dive_metrics(client, conn, limit=200):  # 深度指標分析
-        success_count += 1
-    if export_quadrant_analysis(client, conn):  # 象限分析 (Looker Studio)
+    if export_raw_ads(client, conn):           # 廣告原始資料
         success_count += 1
 
-    # 投廣分析
-    print("\n📈 投廣分析導出:")
-    if export_trending_posts(client, conn, hours=72):  # 近 72 小時熱門
+    # 📊 整合分析報表 (4 個分頁)
+    print("\n📊 整合分析報表導出:")
+    if export_content_analysis(client, conn):  # 行動+議題+交叉
         success_count += 1
-    if export_ad_recommendations(client, conn, limit=50):  # 投廣建議
+    if export_posting_times(client, conn):     # 時間分析
         success_count += 1
-    if export_organic_vs_paid(client, conn):  # 自然 vs 付費比較
+    if export_posts_performance(client, conn): # 貼文表現
         success_count += 1
-
-    # 廣告數據分析
-    print("\n💰 廣告數據導出:")
-    if export_ad_campaigns(client, conn):  # 廣告活動清單
-        success_count += 1
-    if export_ad_roi_analysis(client, conn):  # 廣告 ROI 分析
-        success_count += 1
-    
-    # 導出 Looker Studio 專用資料表
-    if export_ad_recommendations_data(client, conn):
-        success_count += 1
-    if export_organic_vs_paid_data(client, conn):
+    if export_ad_analytics(client, conn):      # 投廣分析
         success_count += 1
 
-    # 說明文件
-    print("\n📄 說明文件導出:")
-    if export_tab_documentation(client):
-        success_count += 1
-
-    # 新增報表
-    print("\n📅 年度分析與紀錄:")
-    if export_yearly_posting_analysis(client, conn):  # 年度發文時間分析
-        success_count += 1
-    if export_pipeline_logs(client, conn):  # Pipeline 執行紀錄
+    # ⚙️ 系統資訊 (1 個分頁)
+    print("\n⚙️ 系統資訊導出:")
+    if export_system_info(client, conn):       # 說明+紀錄
         success_count += 1
 
     conn.close()

@@ -95,20 +95,24 @@ def get_posts_growth_rate(conn, days: int = 7) -> List[Dict]:
 def get_trending_posts(conn, hours: int = 96) -> List[Dict]:
     """
     取得近 N 小時內互動成長最快的貼文
-    
+
     用於識別「正在起飛」的貼文（投廣候選）
     """
     cursor = conn.cursor()
     # 計算每小時平均成長
+    # 注意: created_time 格式為 ISO 8601 (2026-01-14T09:06:06+0000)
+    # 需要轉換為 SQLite 可解析的格式
     cursor.execute("""
         WITH recent_posts AS (
-            SELECT 
+            SELECT
                 p.post_id,
                 SUBSTR(p.message, 1, 100) as message_preview,
                 p.created_time,
-                JULIANDAY('now') - JULIANDAY(p.created_time) as days_since_post
+                JULIANDAY('now') - JULIANDAY(
+                    REPLACE(REPLACE(p.created_time, 'T', ' '), '+0000', '')
+                ) as days_since_post
             FROM posts p
-            WHERE p.created_time >= datetime('now', ? || ' hours')
+            WHERE REPLACE(REPLACE(p.created_time, 'T', ' '), '+0000', '') >= datetime('now', ? || ' hours')
         ),
         engagement_data AS (
             SELECT 
