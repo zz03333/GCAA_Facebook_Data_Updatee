@@ -1,0 +1,289 @@
+{
+  "trendingPosts": [
+    {
+      "postId": "200468742277221",
+      "messagePreview": "《#2025世界核能產業現況報告》摘要中文版今日發佈！\n.\n《2025世界核能產業現況報告》（Wor",
+      "createdTime": "2026-01-14T09:06",
+      "hoursSincePost": 0,
+      "currentEngagement": 50,
+      "reach": 1275,
+      "engagementPerHour": 1.07,
+      "engagementRate": 3.92
+    },
+    {
+      "postId": "200231808967581",
+      "messagePreview": "👀直播進行式👀\n.\n評析全球核電發展趨勢《2025世界核能產業現況報告》\n──中文摘要版發布會\n.\n",
+      "createdTime": "2026-01-14T01:20",
+      "hoursSincePost": 0,
+      "currentEngagement": 13,
+      "reach": 390,
+      "engagementPerHour": 0.24,
+      "engagementRate": 3.33
+    }
+  ],
+  "bestCombos": [
+    {
+      "issueTopic": "核能發電",
+      "formatType": "行動號召",
+      "timeSlot": "深夜 (23-6點)",
+      "dayName": "週日",
+      "postCount": 4,
+      "avgER": 10.9,
+      "highPerformers": 2
+    },
+    {
+      "issueTopic": "產業分析",
+      "formatType": "聲明稿",
+      "timeSlot": "早上 (6-12點)",
+      "dayName": "週五",
+      "postCount": 4,
+      "avgER": 8.38,
+      "highPerformers": 4
+    },
+    {
+      "issueTopic": "核能發電",
+      "formatType": "行動號召",
+      "timeSlot": "深夜 (23-6點)",
+      "dayName": "週五",
+      "postCount": 4,
+      "avgER": 7.2,
+      "highPerformers": 2
+    },
+    {
+      "issueTopic": "核能發電",
+      "formatType": "聲明稿",
+      "timeSlot": "深夜 (23-6點)",
+      "dayName": "週六",
+      "postCount": 4,
+      "avgER": 6.95,
+      "highPerformers": 2
+    },
+    {
+      "issueTopic": "核能發電",
+      "formatType": "聲明稿",
+      "timeSlot": "早上 (6-12點)",
+      "dayName": "週二",
+      "postCount": 4,
+      "avgER": 6.94,
+      "highPerformers": 2
+    },
+    {
+      "issueTopic": "淨零政策",
+      "formatType": "定期活動",
+      "timeSlot": "早上 (6-12點)",
+      "dayName": "週四",
+      "postCount": 4,
+      "avgER": 6.51,
+      "highPerformers": 2
+    },
+    {
+      "issueTopic": "核能發電",
+      "formatType": "記者會",
+      "timeSlot": "深夜 (23-6點)",
+      "dayName": "週二",
+      "postCount": 6,
+      "avgER": 4.57,
+      "highPerformers": 4
+    },
+    {
+      "issueTopic": "核能發電",
+      "formatType": "行動號召",
+      "timeSlot": "晚上 (18-23點)",
+      "dayName": "週三",
+      "postCount": 5,
+      "avgER": 4.28,
+      "highPerformers": 4
+    },
+    {
+      "issueTopic": "核能發電",
+      "formatType": "聲明稿",
+      "timeSlot": "中午 (12-15點)",
+      "dayName": "週一",
+      "postCount": 4,
+      "avgER": 4.25,
+      "highPerformers": 4
+    },
+    {
+      "issueTopic": "核能發電",
+      "formatType": "科普/Podcast",
+      "timeSlot": "早上 (6-12點)",
+      "dayName": "週三",
+      "postCount": 4,
+      "avgER": 4.2,
+      "highPerformers": 2
+    },
+    {
+      "issueTopic": "核能發電",
+      "formatType": "行動號召",
+      "timeSlot": "早上 (6-12點)",
+      "dayName": "週二",
+      "postCount": 18,
+      "avgER": 4.12,
+      "highPerformers": 8
+    },
+    {
+      "issueTopic": "核能發電",
+      "formatType": "聲明稿",
+      "timeSlot": "深夜 (23-6點)",
+      "dayName": "週五",
+      "postCount": 6,
+      "avgER": 4.01,
+      "highPerformers": 3
+    },
+    {
+      "issueTopic": "核能發電",
+      "formatType": "聲明稿",
+      "timeSlot": "深夜 (23-6點)",
+      "dayName": "週二",
+      "postCount": 4,
+      "avgER": 3.8,
+      "highPerformers": 2
+    },
+    {
+      "issueTopic": "核能發電",
+      "formatType": "聲明稿",
+      "timeSlot": "晚上 (18-23點)",
+      "dayName": "週二",
+      "postCount": 6,
+      "avgER": 3.49,
+      "highPerformers": 6
+    },
+    {
+      "issueTopic": "核能發電",
+      "formatType": "新聞觀點",
+      "timeSlot": "早上 (6-12點)",
+      "dayName": "週三",
+      "postCount": 4,
+      "avgER": 3.37,
+      "highPerformers": 2
+    }
+  ],
+  "recommendations": [
+    {
+      "postId": "168442732146489",
+      "createdTime": "2025-12-01",
+      "adRecommendation": "No",
+      "adPotentialScore": 0,
+      "performanceTier": "優質 (前25%)",
+      "formatType": "定期活動",
+      "issueTopic": "核能發電",
+      "breakdown": {
+        "engagementRateScore": 13.7,
+        "shareRateScore": 82.3,
+        "commentRateScore": 6.3,
+        "topicFactor": 1.29,
+        "timeFactor": 0.87
+      },
+      "permalinkUrl": "https://www.facebook.com/1115814590742637/posts/1168442732146489"
+    },
+    {
+      "postId": "141113864879376",
+      "createdTime": "2025-10-28",
+      "adRecommendation": "No",
+      "adPotentialScore": 0,
+      "performanceTier": "優質 (前25%)",
+      "formatType": "行動號召",
+      "issueTopic": "氣候問題",
+      "breakdown": {
+        "engagementRateScore": 19.6,
+        "shareRateScore": 21.4,
+        "commentRateScore": 100.0,
+        "topicFactor": 0.79,
+        "timeFactor": 1.08
+      },
+      "permalinkUrl": "https://www.facebook.com/1115814590742637/posts/1141113864879376"
+    },
+    {
+      "postId": "157850333205729",
+      "createdTime": "2025-11-17",
+      "adRecommendation": "No",
+      "adPotentialScore": 0,
+      "performanceTier": "優質 (前25%)",
+      "formatType": "聲明稿",
+      "issueTopic": "核能發電",
+      "breakdown": {
+        "engagementRateScore": 18.5,
+        "shareRateScore": 7.9,
+        "commentRateScore": 92.3,
+        "topicFactor": 1.29,
+        "timeFactor": 0.87
+      },
+      "permalinkUrl": "https://www.facebook.com/1115814590742637/posts/1157850333205729"
+    },
+    {
+      "postId": "158361969821232",
+      "createdTime": "2025-11-18",
+      "adRecommendation": "No",
+      "adPotentialScore": 0,
+      "performanceTier": "優質 (前25%)",
+      "formatType": "定期活動",
+      "issueTopic": "核能發電",
+      "breakdown": {
+        "engagementRateScore": 12.6,
+        "shareRateScore": 43.1,
+        "commentRateScore": 0.0,
+        "topicFactor": 1.29,
+        "timeFactor": 1.58
+      },
+      "permalinkUrl": "https://www.facebook.com/1115814590742637/posts/1158361969821232"
+    },
+    {
+      "postId": "178339901156772",
+      "createdTime": "2025-12-15",
+      "adRecommendation": "No",
+      "adPotentialScore": 0,
+      "performanceTier": "優質 (前25%)",
+      "formatType": "定期活動",
+      "issueTopic": "產業分析",
+      "breakdown": {
+        "engagementRateScore": 14.5,
+        "shareRateScore": 62.8,
+        "commentRateScore": 3.9,
+        "topicFactor": 1.09,
+        "timeFactor": 0.87
+      },
+      "permalinkUrl": "https://www.facebook.com/1115814590742637/posts/1178339901156772"
+    },
+    {
+      "postId": "158537509803678",
+      "createdTime": "2025-11-18",
+      "adRecommendation": "No",
+      "adPotentialScore": 0,
+      "performanceTier": "優質 (前25%)",
+      "formatType": "行動號召",
+      "issueTopic": "能源發展",
+      "breakdown": {
+        "engagementRateScore": 14.8,
+        "shareRateScore": 12.2,
+        "commentRateScore": 40.6,
+        "topicFactor": 1.02,
+        "timeFactor": 1.32
+      },
+      "permalinkUrl": "https://www.facebook.com/1115814590742637/posts/1158537509803678"
+    }
+  ],
+  "organicVsPaid": [
+    {
+      "type": "organic",
+      "postCount": 911,
+      "avgER": 1.94,
+      "avgShareRate": 0.24,
+      "avgCommentRate": 0.16,
+      "avgCTR": 3.27,
+      "totalReach": 2536279,
+      "totalEngagement": 61294
+    },
+    {
+      "type": "paid",
+      "postCount": 131,
+      "avgER": 4.0,
+      "avgShareRate": 0.24,
+      "avgCommentRate": 0.28,
+      "avgCTR": 4.86,
+      "totalReach": 1839753,
+      "totalEngagement": 44684
+    }
+  ],
+  "campaigns": [],
+  "roiByType": []
+}

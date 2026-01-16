@@ -1,0 +1,553 @@
+{
+  "byActionType": [
+    {
+      "actionType": "科普/Podcast",
+      "postCount": 12,
+      "avgER": 3.25,
+      "avgShareRate": 0.33,
+      "avgCommentRate": 0.29,
+      "viralCount": 2,
+      "highCount": 4
+    },
+    {
+      "actionType": "聲明稿",
+      "postCount": 165,
+      "avgER": 3.09,
+      "avgShareRate": 0.31,
+      "avgCommentRate": 0.29,
+      "viralCount": 15,
+      "highCount": 61
+    },
+    {
+      "actionType": "投書",
+      "postCount": 10,
+      "avgER": 2.84,
+      "avgShareRate": 0.45,
+      "avgCommentRate": 0.17,
+      "viralCount": 0,
+      "highCount": 8
+    },
+    {
+      "actionType": "行動號召",
+      "postCount": 363,
+      "avgER": 2.46,
+      "avgShareRate": 0.24,
+      "avgCommentRate": 0.19,
+      "viralCount": 26,
+      "highCount": 71
+    },
+    {
+      "actionType": "定期活動",
+      "postCount": 173,
+      "avgER": 2.05,
+      "avgShareRate": 0.32,
+      "avgCommentRate": 0.11,
+      "viralCount": 4,
+      "highCount": 26
+    },
+    {
+      "actionType": "報告發布",
+      "postCount": 116,
+      "avgER": 1.97,
+      "avgShareRate": 0.25,
+      "avgCommentRate": 0.15,
+      "viralCount": 4,
+      "highCount": 18
+    },
+    {
+      "actionType": "擺攤資訊",
+      "postCount": 17,
+      "avgER": 1.93,
+      "avgShareRate": 0.23,
+      "avgCommentRate": 0.1,
+      "viralCount": 0,
+      "highCount": 4
+    },
+    {
+      "actionType": "記者會",
+      "postCount": 57,
+      "avgER": 1.92,
+      "avgShareRate": 0.18,
+      "avgCommentRate": 0.12,
+      "viralCount": 2,
+      "highCount": 4
+    },
+    {
+      "actionType": "新聞觀點",
+      "postCount": 30,
+      "avgER": 1.32,
+      "avgShareRate": 0.17,
+      "avgCommentRate": 0.16,
+      "viralCount": 0,
+      "highCount": 2
+    },
+    {
+      "actionType": "unclassified",
+      "postCount": 99,
+      "avgER": 0.56,
+      "avgShareRate": 0.05,
+      "avgCommentRate": 0.06,
+      "viralCount": 0,
+      "highCount": 10
+    }
+  ],
+  "byTopic": [
+    {
+      "topic": "核能發電",
+      "postCount": 408,
+      "avgER": 2.84,
+      "avgShareRate": 0.28,
+      "avgCommentRate": 0.23,
+      "viralCount": 38,
+      "highCount": 115
+    },
+    {
+      "topic": "其他議題",
+      "postCount": 6,
+      "avgER": 2.84,
+      "avgShareRate": 0.37,
+      "avgCommentRate": 0.15,
+      "viralCount": 0,
+      "highCount": 4
+    },
+    {
+      "topic": "產業分析",
+      "postCount": 96,
+      "avgER": 2.38,
+      "avgShareRate": 0.24,
+      "avgCommentRate": 0.14,
+      "viralCount": 6,
+      "highCount": 16
+    },
+    {
+      "topic": "淨零政策",
+      "postCount": 76,
+      "avgER": 2.32,
+      "avgShareRate": 0.22,
+      "avgCommentRate": 0.16,
+      "viralCount": 4,
+      "highCount": 14
+    },
+    {
+      "topic": "能源發展",
+      "postCount": 55,
+      "avgER": 2.24,
+      "avgShareRate": 0.31,
+      "avgCommentRate": 0.22,
+      "viralCount": 0,
+      "highCount": 24
+    },
+    {
+      "topic": "氣候問題",
+      "postCount": 271,
+      "avgER": 1.73,
+      "avgShareRate": 0.25,
+      "avgCommentRate": 0.13,
+      "viralCount": 3,
+      "highCount": 23
+    },
+    {
+      "topic": "unclassified",
+      "postCount": 130,
+      "avgER": 0.88,
+      "avgShareRate": 0.09,
+      "avgCommentRate": 0.07,
+      "viralCount": 2,
+      "highCount": 12
+    }
+  ],
+  "crossAnalysis": [
+    {
+      "actionType": "聲明稿",
+      "topic": "產業分析",
+      "postCount": 18,
+      "avgER": 4.61,
+      "avgShareRate": 0.38,
+      "highPerformerCount": 10
+    },
+    {
+      "actionType": "科普/Podcast",
+      "topic": "核能發電",
+      "postCount": 6,
+      "avgER": 4.32,
+      "avgShareRate": 0.3,
+      "highPerformerCount": 4
+    },
+    {
+      "actionType": "定期活動",
+      "topic": "產業分析",
+      "postCount": 4,
+      "avgER": 4.03,
+      "avgShareRate": 0.45,
+      "highPerformerCount": 4
+    },
+    {
+      "actionType": "定期活動",
+      "topic": "淨零政策",
+      "postCount": 8,
+      "avgER": 3.96,
+      "avgShareRate": 0.28,
+      "highPerformerCount": 2
+    },
+    {
+      "actionType": "投書",
+      "topic": "unclassified",
+      "postCount": 2,
+      "avgER": 3.37,
+      "avgShareRate": 0.65,
+      "highPerformerCount": 2
+    },
+    {
+      "actionType": "聲明稿",
+      "topic": "其他議題",
+      "postCount": 2,
+      "avgER": 3.34,
+      "avgShareRate": 1.04,
+      "highPerformerCount": 2
+    },
+    {
+      "actionType": "科普/Podcast",
+      "topic": "能源發展",
+      "postCount": 2,
+      "avgER": 3.32,
+      "avgShareRate": 0.44,
+      "highPerformerCount": 2
+    },
+    {
+      "actionType": "聲明稿",
+      "topic": "核能發電",
+      "postCount": 89,
+      "avgER": 3.29,
+      "avgShareRate": 0.31,
+      "highPerformerCount": 46
+    },
+    {
+      "actionType": "unclassified",
+      "topic": "能源發展",
+      "postCount": 2,
+      "avgER": 3.18,
+      "avgShareRate": 0.82,
+      "highPerformerCount": 2
+    },
+    {
+      "actionType": "行動號召",
+      "topic": "核能發電",
+      "postCount": 141,
+      "avgER": 3.07,
+      "avgShareRate": 0.25,
+      "highPerformerCount": 51
+    },
+    {
+      "actionType": "行動號召",
+      "topic": "淨零政策",
+      "postCount": 24,
+      "avgER": 3.0,
+      "avgShareRate": 0.32,
+      "highPerformerCount": 12
+    },
+    {
+      "actionType": "unclassified",
+      "topic": "核能發電",
+      "postCount": 10,
+      "avgER": 2.92,
+      "avgShareRate": 0.17,
+      "highPerformerCount": 6
+    },
+    {
+      "actionType": "記者會",
+      "topic": "核能發電",
+      "postCount": 20,
+      "avgER": 2.87,
+      "avgShareRate": 0.25,
+      "highPerformerCount": 6
+    },
+    {
+      "actionType": "投書",
+      "topic": "核能發電",
+      "postCount": 6,
+      "avgER": 2.74,
+      "avgShareRate": 0.45,
+      "highPerformerCount": 4
+    },
+    {
+      "actionType": "報告發布",
+      "topic": "核能發電",
+      "postCount": 37,
+      "avgER": 2.65,
+      "avgShareRate": 0.29,
+      "highPerformerCount": 12
+    },
+    {
+      "actionType": "投書",
+      "topic": "能源發展",
+      "postCount": 2,
+      "avgER": 2.6,
+      "avgShareRate": 0.29,
+      "highPerformerCount": 2
+    },
+    {
+      "actionType": "行動號召",
+      "topic": "其他議題",
+      "postCount": 4,
+      "avgER": 2.58,
+      "avgShareRate": 0.04,
+      "highPerformerCount": 2
+    },
+    {
+      "actionType": "聲明稿",
+      "topic": "能源發展",
+      "postCount": 15,
+      "avgER": 2.46,
+      "avgShareRate": 0.35,
+      "highPerformerCount": 6
+    },
+    {
+      "actionType": "擺攤資訊",
+      "topic": "產業分析",
+      "postCount": 2,
+      "avgER": 2.43,
+      "avgShareRate": 0.11,
+      "highPerformerCount": 0
+    },
+    {
+      "actionType": "聲明稿",
+      "topic": "氣候問題",
+      "postCount": 22,
+      "avgER": 2.39,
+      "avgShareRate": 0.24,
+      "highPerformerCount": 8
+    },
+    {
+      "actionType": "報告發布",
+      "topic": "能源發展",
+      "postCount": 10,
+      "avgER": 2.38,
+      "avgShareRate": 0.48,
+      "highPerformerCount": 6
+    },
+    {
+      "actionType": "行動號召",
+      "topic": "unclassified",
+      "postCount": 28,
+      "avgER": 2.38,
+      "avgShareRate": 0.25,
+      "highPerformerCount": 8
+    },
+    {
+      "actionType": "行動號召",
+      "topic": "產業分析",
+      "postCount": 23,
+      "avgER": 2.36,
+      "avgShareRate": 0.21,
+      "highPerformerCount": 4
+    },
+    {
+      "actionType": "定期活動",
+      "topic": "核能發電",
+      "postCount": 71,
+      "avgER": 2.27,
+      "avgShareRate": 0.33,
+      "highPerformerCount": 20
+    },
+    {
+      "actionType": "擺攤資訊",
+      "topic": "unclassified",
+      "postCount": 6,
+      "avgER": 2.22,
+      "avgShareRate": 0.25,
+      "highPerformerCount": 2
+    },
+    {
+      "actionType": "行動號召",
+      "topic": "能源發展",
+      "postCount": 18,
+      "avgER": 2.02,
+      "avgShareRate": 0.15,
+      "highPerformerCount": 6
+    },
+    {
+      "actionType": "聲明稿",
+      "topic": "淨零政策",
+      "postCount": 19,
+      "avgER": 2.0,
+      "avgShareRate": 0.22,
+      "highPerformerCount": 4
+    },
+    {
+      "actionType": "科普/Podcast",
+      "topic": "淨零政策",
+      "postCount": 2,
+      "avgER": 1.88,
+      "avgShareRate": 0.26,
+      "highPerformerCount": 0
+    },
+    {
+      "actionType": "行動號召",
+      "topic": "氣候問題",
+      "postCount": 125,
+      "avgER": 1.76,
+      "avgShareRate": 0.23,
+      "highPerformerCount": 14
+    },
+    {
+      "actionType": "報告發布",
+      "topic": "產業分析",
+      "postCount": 26,
+      "avgER": 1.69,
+      "avgShareRate": 0.23,
+      "highPerformerCount": 4
+    },
+    {
+      "actionType": "定期活動",
+      "topic": "能源發展",
+      "postCount": 2,
+      "avgER": 1.67,
+      "avgShareRate": 0.69,
+      "highPerformerCount": 0
+    },
+    {
+      "actionType": "記者會",
+      "topic": "淨零政策",
+      "postCount": 4,
+      "avgER": 1.66,
+      "avgShareRate": 0.11,
+      "highPerformerCount": 0
+    },
+    {
+      "actionType": "定期活動",
+      "topic": "unclassified",
+      "postCount": 2,
+      "avgER": 1.64,
+      "avgShareRate": 0.0,
+      "highPerformerCount": 0
+    },
+    {
+      "actionType": "新聞觀點",
+      "topic": "核能發電",
+      "postCount": 19,
+      "avgER": 1.64,
+      "avgShareRate": 0.21,
+      "highPerformerCount": 2
+    },
+    {
+      "actionType": "新聞觀點",
+      "topic": "氣候問題",
+      "postCount": 4,
+      "avgER": 1.63,
+      "avgShareRate": 0.25,
+      "highPerformerCount": 0
+    },
+    {
+      "actionType": "unclassified",
+      "topic": "淨零政策",
+      "postCount": 2,
+      "avgER": 1.63,
+      "avgShareRate": 0.0,
+      "highPerformerCount": 0
+    },
+    {
+      "actionType": "擺攤資訊",
+      "topic": "核能發電",
+      "postCount": 9,
+      "avgER": 1.62,
+      "avgShareRate": 0.25,
+      "highPerformerCount": 2
+    },
+    {
+      "actionType": "定期活動",
+      "topic": "氣候問題",
+      "postCount": 86,
+      "avgER": 1.61,
+      "avgShareRate": 0.3,
+      "highPerformerCount": 4
+    },
+    {
+      "actionType": "報告發布",
+      "topic": "氣候問題",
+      "postCount": 24,
+      "avgER": 1.59,
+      "avgShareRate": 0.17,
+      "highPerformerCount": 0
+    },
+    {
+      "actionType": "記者會",
+      "topic": "產業分析",
+      "postCount": 16,
+      "avgER": 1.54,
+      "avgShareRate": 0.23,
+      "highPerformerCount": 0
+    },
+    {
+      "actionType": "報告發布",
+      "topic": "unclassified",
+      "postCount": 2,
+      "avgER": 1.54,
+      "avgShareRate": 0.38,
+      "highPerformerCount": 0
+    },
+    {
+      "actionType": "unclassified",
+      "topic": "氣候問題",
+      "postCount": 4,
+      "avgER": 1.46,
+      "avgShareRate": 0.23,
+      "highPerformerCount": 0
+    },
+    {
+      "actionType": "科普/Podcast",
+      "topic": "氣候問題",
+      "postCount": 2,
+      "avgER": 1.35,
+      "avgShareRate": 0.4,
+      "highPerformerCount": 0
+    },
+    {
+      "actionType": "記者會",
+      "topic": "氣候問題",
+      "postCount": 4,
+      "avgER": 1.27,
+      "avgShareRate": 0.18,
+      "highPerformerCount": 0
+    },
+    {
+      "actionType": "報告發布",
+      "topic": "淨零政策",
+      "postCount": 17,
+      "avgER": 1.25,
+      "avgShareRate": 0.12,
+      "highPerformerCount": 0
+    },
+    {
+      "actionType": "記者會",
+      "topic": "能源發展",
+      "postCount": 4,
+      "avgER": 1.2,
+      "avgShareRate": 0.0,
+      "highPerformerCount": 0
+    },
+    {
+      "actionType": "記者會",
+      "topic": "unclassified",
+      "postCount": 9,
+      "avgER": 1.19,
+      "avgShareRate": 0.04,
+      "highPerformerCount": 0
+    },
+    {
+      "actionType": "新聞觀點",
+      "topic": "產業分析",
+      "postCount": 7,
+      "avgER": 0.28,
+      "avgShareRate": 0.02,
+      "highPerformerCount": 0
+    },
+    {
+      "actionType": "unclassified",
+      "topic": "unclassified",
+      "postCount": 81,
+      "avgER": 0.14,
+      "avgShareRate": 0.01,
+      "highPerformerCount": 2
+    }
+  ]
+}

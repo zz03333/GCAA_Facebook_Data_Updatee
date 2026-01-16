@@ -3,6 +3,9 @@
 service-account-key.json
 gemini-api-reports-*.json
 
+# Allow dashboard data files
+!fb-dashboard/public/data/*.json
+
 # Python
 __pycache__/
 *.py[cod]
