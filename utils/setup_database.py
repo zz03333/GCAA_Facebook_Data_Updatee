@@ -3,6 +3,33 @@ import os
 
 DB_PATH = 'engagement_data.db'
 
+
+def migrate_add_columns(conn):
+    """Add missing columns to existing tables (for schema migrations)"""
+    cursor = conn.cursor()
+
+    # Check and add missing columns to posts_classification
+    migrations = [
+        ('posts_classification', 'format_type', 'TEXT'),
+        ('posts_classification', 'issue_topic', 'TEXT'),
+    ]
+
+    for table, column, col_type in migrations:
+        try:
+            # Check if column exists
+            cursor.execute(f"PRAGMA table_info({table})")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            if column not in columns:
+                cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+                print(f"✓ Added column {column} to {table}")
+        except Exception as e:
+            # Column might already exist or table doesn't exist yet
+            pass
+
+    conn.commit()
+
+
 def create_connection():
     """Create a database connection to the SQLite database specified by DB_PATH."""
     conn = None
@@ -203,6 +230,9 @@ def create_tables(conn):
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_performance_tier ON posts_performance(performance_tier);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_performance_date ON posts_performance(snapshot_date);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_summary_granularity ON analytics_summary(granularity, summary_date);")
+
+        # Migration: Add missing columns to existing tables
+        migrate_add_columns(conn)
 
         conn.commit()
         print("Tables created successfully.")
