@@ -667,29 +667,43 @@ def export_raw_post_insights(client, conn):
             '總讚數', '留言數', '分享數', '點擊數', '觸及人數',
             '影片觀看', '自然觀看', '付費觀看',
             '👍反應', '❤️反應', '😮反應', '😆反應', '😢反應', '😠反應',
-            '有投廣', '廣告狀態', '廣告花費', '付費曝光', '付費點擊',
+            '有投廣', '廣告狀態', '廣告期間', '廣告花費', '付費曝光', '付費點擊',
             '貼文連結'
         ]
 
         cursor = conn.cursor()
         # 合併 posts + post_insights + posts_classification + ads
+        # 廣告狀態邏輯：使用統計結束日期判斷是否已過期
         cursor.execute("""
             WITH latest_snapshots AS (
                 SELECT post_id, MAX(fetch_date) as latest_date
                 FROM post_insights_snapshots
                 GROUP BY post_id
             ),
+            ad_date_range AS (
+                SELECT ad_id, MIN(date_start) as date_start, MAX(date_stop) as date_stop
+                FROM ad_insights
+                GROUP BY ad_id
+            ),
             ad_summary AS (
                 SELECT
                     a.post_id,
-                    a.status as ad_status,
+                    -- 有效狀態：考慮廣告結束日期
+                    CASE
+                        WHEN a.status IN ('PAUSED', 'DELETED', 'ARCHIVED') THEN a.status
+                        WHEN adr.date_stop IS NOT NULL AND adr.date_stop < date('now') THEN 'ENDED'
+                        ELSE a.status
+                    END as effective_status,
+                    adr.date_start,
+                    adr.date_stop,
                     SUM(ai.spend) as total_spend,
                     SUM(ai.impressions) as paid_impressions,
                     SUM(ai.clicks) as paid_clicks
                 FROM ads a
+                LEFT JOIN ad_date_range adr ON a.ad_id = adr.ad_id
                 LEFT JOIN ad_insights ai ON a.ad_id = ai.ad_id
                 WHERE a.post_id IS NOT NULL
-                GROUP BY a.post_id, a.status
+                GROUP BY a.post_id, effective_status, adr.date_start, adr.date_stop
             )
             SELECT
                 p.post_id, p.created_time, SUBSTR(p.message, 1, 100) as message_preview,
@@ -701,7 +715,9 @@ def export_raw_post_insights(client, conn):
                 i.post_reactions_wow_total, i.post_reactions_haha_total,
                 i.post_reactions_sorry_total, i.post_reactions_anger_total,
                 CASE WHEN ads.post_id IS NOT NULL THEN '是' ELSE '否' END as is_promoted,
-                ads.ad_status,
+                ads.effective_status,
+                ads.date_start,
+                ads.date_stop,
                 ROUND(COALESCE(ads.total_spend, 0), 2) as total_spend,
                 COALESCE(ads.paid_impressions, 0) as paid_impressions,
                 COALESCE(ads.paid_clicks, 0) as paid_clicks,
@@ -727,11 +743,16 @@ def export_raw_post_insights(client, conn):
         }
         ad_status_map = {
             'ACTIVE': '進行中', 'PAUSED': '已暫停', 'DELETED': '已刪除',
-            'ARCHIVED': '已封存', 'PENDING_REVIEW': '審核中'
+            'ARCHIVED': '已封存', 'PENDING_REVIEW': '審核中', 'ENDED': '已結束'
         }
 
         rows = [headers]
         for row in rows_data:
+            # 廣告期間格式化
+            date_start = row[21] or ''
+            date_stop = row[22] or ''
+            ad_period = f"{date_start} ~ {date_stop}" if date_start else ''
+
             rows.append([
                 row[0],  # post_id
                 convert_to_gmt8(row[1]),  # created_time (GMT+8)
@@ -743,16 +764,17 @@ def export_raw_post_insights(client, conn):
                 row[10] or 0, row[11] or 0, row[12] or 0,  # video views
                 row[13] or 0, row[14] or 0, row[15] or 0, row[16] or 0, row[17] or 0, row[18] or 0,  # reactions
                 row[19] or '否',  # is_promoted
-                ad_status_map.get(row[20], row[20] or ''),  # ad_status
-                row[21] or 0, row[22] or 0, row[23] or 0,  # spend, paid_impressions, paid_clicks
-                row[24] or ''  # permalink_url
+                ad_status_map.get(row[20], row[20] or ''),  # effective_status
+                ad_period,  # ad date range
+                row[23] or 0, row[24] or 0, row[25] or 0,  # spend, paid_impressions, paid_clicks
+                row[26] or ''  # permalink_url
             ])
 
         if rows:
             update_worksheet(worksheet, 'A1', rows)
 
-        # 格式化標題 (25 columns)
-        worksheet.format('A1:Y1', {
+        # 格式化標題 (26 columns)
+        worksheet.format('A1:Z1', {
             "backgroundColor": {"red": 0.2, "green": 0.6, "blue": 0.9},
             "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}
         })
