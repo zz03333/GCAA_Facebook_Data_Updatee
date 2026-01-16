@@ -1,0 +1,73 @@
+name: Deploy to Cloud Run
+
+on:
+  # 手動觸發
+  workflow_dispatch:
+  # 推送到 main 分支時執行
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: 'gemini-api-reports'
+  SERVICE_NAME: 'facebook-insights-collector'
+  REGION: 'asia-east1'
+  REGISTRY: 'asia-east1-docker.pkg.dev'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_CREDENTIALS }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Configure Docker for Artifact Registry
+      run: gcloud auth configure-docker ${{ env.REGISTRY }}
+
+    - name: Build Docker image
+      run: |
+        docker build -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/facebook-insights/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+                     -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/facebook-insights/${{ env.SERVICE_NAME }}:latest .
+
+    - name: Push Docker image to Artifact Registry
+      run: |
+        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/facebook-insights/${{ env.SERVICE_NAME }}:${{ github.sha }}
+        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/facebook-insights/${{ env.SERVICE_NAME }}:latest
+
+    - name: Deploy to Cloud Run
+      env:
+        GCP_SA_CREDENTIALS: ${{ secrets.GCP_SA_CREDENTIALS }}
+        FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+      run: |
+        # Encode secrets to avoid special character issues
+        GCP_SA_BASE64=$(echo -n "${GCP_SA_CREDENTIALS}" | base64 -w 0)
+        FB_TOKEN_BASE64=$(echo -n "${FACEBOOK_ACCESS_TOKEN}" | base64 -w 0)
+
+        gcloud run deploy ${{ env.SERVICE_NAME }} \
+          --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/facebook-insights/${{ env.SERVICE_NAME }}:latest \
+          --platform managed \
+          --region ${{ env.REGION }} \
+          --allow-unauthenticated \
+          --memory 512Mi \
+          --timeout 900 \
+          --set-env-vars "GCP_SA_CREDENTIALS_BASE64=${GCP_SA_BASE64}" \
+          --set-env-vars "FACEBOOK_ACCESS_TOKEN_BASE64=${FB_TOKEN_BASE64}" \
+          --project ${{ env.PROJECT_ID }}
+
+    - name: Get Service URL
+      run: |
+        SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+          --platform managed \
+          --region ${{ env.REGION }} \
+          --format 'value(status.url)' \
+          --project ${{ env.PROJECT_ID }})
+        echo "Service deployed to: $SERVICE_URL"
