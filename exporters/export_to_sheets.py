@@ -44,26 +44,17 @@ ANALYTICS_WORKSHEET_NAME = 'analytics_dashboard'
 
 # ==================== 輔助函數 ====================
 
-def update_with_timestamp(worksheet, range_name, values):
-    """Wrapper to add timestamp column to all worksheet updates"""
+def update_worksheet(worksheet, range_name, values):
+    """Simple wrapper to update worksheet without timestamp (timestamp only in system_info)"""
     if not values or len(values) == 0:
-        worksheet.update(range_name, values)
         return
-    
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    
-    # Make a copy to avoid modifying original
-    updated_values = [row[:] if isinstance(row, list) else list(row) for row in values]
-    
-    # Add header to first row if it exists
-    if len(updated_values) > 0:
-        updated_values[0].append('data_updated_at')
-        
-        # Add timestamp to all data rows
-        for i in range(1, len(updated_values)):
-            updated_values[i].append(timestamp)
-    
-    worksheet.update(range_name, updated_values)
+    worksheet.update(values=values, range_name=range_name)
+
+
+# Keep old name for backward compatibility during transition
+def update_with_timestamp(worksheet, range_name, values):
+    """Deprecated: Use update_worksheet instead. Timestamp now only in system_info."""
+    update_worksheet(worksheet, range_name, values)
 
 
 def convert_to_gmt8(iso_time_str):
@@ -670,22 +661,35 @@ def export_raw_post_insights(client, conn):
 
         worksheet.clear()
 
-        # 合併欄位：基本資訊 + 分類 + 互動數據
+        # 合併欄位：基本資訊 + 分類 + 互動數據 + 廣告資訊
         headers = [
             'Post ID', '發布時間 (GMT+8)', '內容預覽', '行動類型', '議題類型',
             '總讚數', '留言數', '分享數', '點擊數', '觸及人數',
             '影片觀看', '自然觀看', '付費觀看',
             '👍反應', '❤️反應', '😮反應', '😆反應', '😢反應', '😠反應',
+            '有投廣', '廣告狀態', '廣告花費', '付費曝光', '付費點擊',
             '貼文連結'
         ]
 
         cursor = conn.cursor()
-        # 合併 posts + post_insights_snapshots + posts_classification
+        # 合併 posts + post_insights + posts_classification + ads
         cursor.execute("""
             WITH latest_snapshots AS (
                 SELECT post_id, MAX(fetch_date) as latest_date
                 FROM post_insights_snapshots
                 GROUP BY post_id
+            ),
+            ad_summary AS (
+                SELECT
+                    a.post_id,
+                    a.status as ad_status,
+                    SUM(ai.spend) as total_spend,
+                    SUM(ai.impressions) as paid_impressions,
+                    SUM(ai.clicks) as paid_clicks
+                FROM ads a
+                LEFT JOIN ad_insights ai ON a.ad_id = ai.ad_id
+                WHERE a.post_id IS NOT NULL
+                GROUP BY a.post_id, a.status
             )
             SELECT
                 p.post_id, p.created_time, SUBSTR(p.message, 1, 100) as message_preview,
@@ -696,16 +700,22 @@ def export_raw_post_insights(client, conn):
                 i.post_reactions_like_total, i.post_reactions_love_total,
                 i.post_reactions_wow_total, i.post_reactions_haha_total,
                 i.post_reactions_sorry_total, i.post_reactions_anger_total,
+                CASE WHEN ads.post_id IS NOT NULL THEN '是' ELSE '否' END as is_promoted,
+                ads.ad_status,
+                ROUND(COALESCE(ads.total_spend, 0), 2) as total_spend,
+                COALESCE(ads.paid_impressions, 0) as paid_impressions,
+                COALESCE(ads.paid_clicks, 0) as paid_clicks,
                 p.permalink_url
             FROM post_insights_snapshots i
             JOIN latest_snapshots ls ON i.post_id = ls.post_id AND i.fetch_date = ls.latest_date
             JOIN posts p ON i.post_id = p.post_id
             LEFT JOIN posts_classification pc ON p.post_id = pc.post_id
+            LEFT JOIN ad_summary ads ON p.post_id = ads.post_id
             ORDER BY p.created_time DESC
         """)
         rows_data = cursor.fetchall()
 
-        # 行動/議題翻譯
+        # 行動/議題/廣告狀態翻譯
         format_map = {
             'event': '定期活動', 'press': '記者會', 'statement': '聲明稿',
             'opinion': '新聞觀點', 'op_ed': '投書', 'report': '報告發布',
@@ -714,6 +724,10 @@ def export_raw_post_insights(client, conn):
         issue_map = {
             'nuclear': '核能發電', 'climate': '氣候問題', 'net_zero': '淨零政策',
             'industry': '產業分析', 'renewable': '能源發展', 'other': '其他議題'
+        }
+        ad_status_map = {
+            'ACTIVE': '進行中', 'PAUSED': '已暫停', 'DELETED': '已刪除',
+            'ARCHIVED': '已封存', 'PENDING_REVIEW': '審核中'
         }
 
         rows = [headers]
@@ -728,19 +742,22 @@ def export_raw_post_insights(client, conn):
                 row[8] or 0, row[9] or 0,  # clicks, reach
                 row[10] or 0, row[11] or 0, row[12] or 0,  # video views
                 row[13] or 0, row[14] or 0, row[15] or 0, row[16] or 0, row[17] or 0, row[18] or 0,  # reactions
-                row[19] or ''  # permalink_url
+                row[19] or '否',  # is_promoted
+                ad_status_map.get(row[20], row[20] or ''),  # ad_status
+                row[21] or 0, row[22] or 0, row[23] or 0,  # spend, paid_impressions, paid_clicks
+                row[24] or ''  # permalink_url
             ])
 
         if rows:
-            update_with_timestamp(worksheet, 'A1', rows)
+            update_worksheet(worksheet, 'A1', rows)
 
-        # 格式化標題 (21 columns including timestamp)
-        worksheet.format('A1:U1', {
+        # 格式化標題 (25 columns)
+        worksheet.format('A1:Y1', {
             "backgroundColor": {"red": 0.2, "green": 0.6, "blue": 0.9},
             "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}
         })
 
-        print(f"  ✓ 已導出貼文完整資料（{len(rows_data)} 筆，含分類與互動數據）")
+        print(f"  ✓ 已導出貼文完整資料（{len(rows_data)} 筆，含分類、互動與廣告數據）")
         return True
 
     except Exception as e:
@@ -749,7 +766,7 @@ def export_raw_post_insights(client, conn):
 
 
 def export_page_daily_metrics(client, conn):
-    """導出 page_daily_metrics 表原始資料 (含每日貼文數)"""
+    """導出 page_daily_metrics 表原始資料 (含每日貼文數和分享數)"""
     try:
         spreadsheet = client.open(SPREADSHEET_NAME)
 
@@ -758,35 +775,54 @@ def export_page_daily_metrics(client, conn):
         except gspread.exceptions.WorksheetNotFound:
             worksheet = spreadsheet.add_worksheet(title='page_daily_metrics', rows=500, cols=15)
 
-        # 完整重寫模式，確保資料一致
         worksheet.clear()
 
-        # 新標題：日期、貼文數、觸及人數...
-        headers = ['日期', '貼文數', '觸及人數', '互動數', '影片觀看',
+        # 標題：包含分享數
+        headers = ['日期', '貼文數', '觸及人數', '互動數', '分享數', '影片觀看',
                    '讚', '愛心', '哇', '哈哈', '嗚嗚', '怒', '總反應數']
 
         cursor = conn.cursor()
-        # 結合 page_daily_metrics 與 posts 表計算每日貼文數
+        # 結合 page_daily_metrics、posts 表計算每日貼文數
+        # 分享數：當日發布的貼文的累積分享數（來自最新快照）
         cursor.execute("""
-            SELECT 
+            WITH daily_posts AS (
+                SELECT
+                    DATE(REPLACE(REPLACE(created_time, 'T', ' '), '+0000', '')) as post_date,
+                    COUNT(*) as post_count
+                FROM posts
+                GROUP BY post_date
+            ),
+            latest_snapshots AS (
+                SELECT post_id, MAX(fetch_date) as latest_date
+                FROM post_insights_snapshots
+                GROUP BY post_id
+            ),
+            daily_shares AS (
+                SELECT
+                    DATE(REPLACE(REPLACE(p.created_time, 'T', ' '), '+0000', '')) as post_date,
+                    SUM(i.shares_count) as total_shares
+                FROM post_insights_snapshots i
+                JOIN latest_snapshots ls ON i.post_id = ls.post_id AND i.fetch_date = ls.latest_date
+                JOIN posts p ON i.post_id = p.post_id
+                GROUP BY post_date
+            )
+            SELECT
                 pdm.date,
-                COALESCE(post_counts.post_count, 0) as post_count,
-                pdm.page_impressions_unique, 
-                pdm.page_post_engagements, 
+                COALESCE(dp.post_count, 0) as post_count,
+                pdm.page_impressions_unique,
+                pdm.page_post_engagements,
+                COALESCE(ds.total_shares, 0) as total_shares,
                 pdm.page_video_views,
-                pdm.reactions_like, 
-                pdm.reactions_love, 
+                pdm.reactions_like,
+                pdm.reactions_love,
                 pdm.reactions_wow,
-                pdm.reactions_haha, 
-                pdm.reactions_sorry, 
-                pdm.reactions_anger, 
+                pdm.reactions_haha,
+                pdm.reactions_sorry,
+                pdm.reactions_anger,
                 pdm.reactions_total
             FROM page_daily_metrics pdm
-            LEFT JOIN (
-                SELECT DATE(created_time) as post_date, COUNT(*) as post_count
-                FROM posts
-                GROUP BY DATE(created_time)
-            ) post_counts ON pdm.date = post_counts.post_date
+            LEFT JOIN daily_posts dp ON pdm.date = dp.post_date
+            LEFT JOIN daily_shares ds ON pdm.date = ds.post_date
             ORDER BY pdm.date DESC
         """)
         rows_data = cursor.fetchall()
@@ -795,15 +831,15 @@ def export_page_daily_metrics(client, conn):
         for row in rows_data:
             rows.append(list(row))
 
-        update_with_timestamp(worksheet, 'A1', rows)
+        update_worksheet(worksheet, 'A1', rows)
 
-        # 格式化標題
-        worksheet.format('A1:L1', {
+        # 格式化標題 (13 columns)
+        worksheet.format('A1:M1', {
             "backgroundColor": {"red": 0.2, "green": 0.6, "blue": 0.9},
             "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}
         })
 
-        print(f"  ✓ 已導出頁面每日指標（{len(rows_data)} 筆，含貼文數）")
+        print(f"  ✓ 已導出頁面每日指標（{len(rows_data)} 筆，含分享數）")
         return True
 
     except Exception as e:
