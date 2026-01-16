@@ -1,0 +1,132 @@
+name: Deploy Pipeline & Dashboard
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: 'What to deploy'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - cloud-run-only
+          - dashboard-only
+  push:
+    branches:
+      - main
+
+env:
+  # Cloud Run Config
+  PROJECT_ID: 'gemini-api-reports'
+  SERVICE_NAME: 'facebook-insights-collector'
+  REGION: 'asia-east1'
+  REGISTRY: 'asia-east1-docker.pkg.dev'
+
+jobs:
+  # ============================================
+  # Job 1: Deploy Data Pipeline to Cloud Run
+  # ============================================
+  deploy-cloud-run:
+    if: ${{ github.event.inputs.deploy_target != 'dashboard-only' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_CREDENTIALS }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGISTRY }}
+
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/facebook-insights/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+                       -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/facebook-insights/${{ env.SERVICE_NAME }}:latest .
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/facebook-insights/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/facebook-insights/${{ env.SERVICE_NAME }}:latest
+
+      - name: Deploy to Cloud Run
+        env:
+          GCP_SA_CREDENTIALS: ${{ secrets.GCP_SA_CREDENTIALS }}
+          FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+        run: |
+          GCP_SA_BASE64=$(echo -n "${GCP_SA_CREDENTIALS}" | base64 -w 0)
+          FB_TOKEN_BASE64=$(echo -n "${FACEBOOK_ACCESS_TOKEN}" | base64 -w 0)
+
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/facebook-insights/${{ env.SERVICE_NAME }}:latest \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --memory 512Mi \
+            --timeout 900 \
+            --set-env-vars "GCP_SA_CREDENTIALS_BASE64=${GCP_SA_BASE64}" \
+            --set-env-vars "FACEBOOK_ACCESS_TOKEN_BASE64=${FB_TOKEN_BASE64}" \
+            --project ${{ env.PROJECT_ID }}
+
+      - name: Output Service URL
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --format 'value(status.url)' \
+            --project ${{ env.PROJECT_ID }})
+          echo "### Cloud Run Service URL" >> $GITHUB_STEP_SUMMARY
+          echo "$SERVICE_URL" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================
+  # Job 2: Build & Deploy Dashboard to GitHub Pages
+  # ============================================
+  deploy-dashboard:
+    if: ${{ github.event.inputs.deploy_target != 'cloud-run-only' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: fb-dashboard/package-lock.json
+
+      - name: Install dependencies
+        working-directory: fb-dashboard
+        run: npm ci
+
+      - name: Build dashboard
+        working-directory: fb-dashboard
+        run: npm run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'fb-dashboard/dist'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
