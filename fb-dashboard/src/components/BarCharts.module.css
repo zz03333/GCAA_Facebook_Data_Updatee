@@ -1,0 +1,40 @@
+@keyframes barFadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.chartCard {
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-surface) 100%);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  transition: var(--transition-base);
+  animation: barFadeIn 0.5s ease-out both;
+}
+
+.chartCard:nth-child(1) { animation-delay: 0.4s; }
+.chartCard:nth-child(2) { animation-delay: 0.5s; }
+
+.chartCard:hover {
+  border-color: var(--border-active);
+}
+
+.chartTitle {
+  font-size: 0.938rem;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-bottom: 1rem;
+}
+
+.chartContainer {
+  width: 100%;
+  min-height: 200px;
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 0.75rem;
+  opacity: 0.7;
+}

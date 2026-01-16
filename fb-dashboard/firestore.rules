@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Note: Auth is on facebook-reports-e388f, Firestore is on esg-reports-collection
+    // Since they're different projects, we allow read access for analytics data
+    // (analytics data is not sensitive). Write is restricted to Admin SDK only.
+
+    // Posts collection - public read, admin write only
+    match /posts/{postId} {
+      allow read: if true;
+      allow write: if false; // Only backend (admin SDK) can write
+    }
+
+    // Weekly trends - public read
+    match /weeklyTrends/{weekId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Aggregates (format, issue, hourly, bestTimes, topPosts) - public read
+    match /aggregates/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Metadata (sync status) - public read
+    match /metadata/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Daily metrics - public read
+    match /dailyMetrics/{date} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Aggregated data subcollections
+    match /aggregates/{aggregateType}/data/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Phase B: Analytics collections (predictions, recommendations, anomalies)
+    match /predictions/{predictionId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /recommendations/{recommendationId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /anomalies/{anomalyId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

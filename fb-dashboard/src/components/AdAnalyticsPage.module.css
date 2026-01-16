@@ -1,0 +1,360 @@
+.page {
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.loading,
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  color: var(--color-muted);
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(100, 116, 139, 0.2);
+  border-top-color: var(--color-warning);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.header {
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-bright);
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tab {
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-muted);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  color: var(--color-bright);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tab.active {
+  color: var(--color-warning);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.section {
+  background: var(--color-card);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.sectionTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-bright);
+  margin-bottom: 0.5rem;
+}
+
+.sectionDescription {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+  margin-bottom: 1.5rem;
+}
+
+/* Card Grid */
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.trendingCard {
+  background: var(--color-surface);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1.25rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.trendingCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.badge {
+  background: var(--color-warning);
+  color: black;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.timeAgo {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+.cardContent {
+  font-size: 0.875rem;
+  color: var(--color-text);
+  line-height: 1.5;
+  margin-bottom: 1rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cardStats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.statLabel {
+  font-size: 0.7rem;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.statValue {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-bright);
+}
+
+/* Table Styles */
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table th,
+.table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.table th {
+  font-weight: 600;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.table td {
+  color: var(--color-text);
+}
+
+.actionType {
+  font-weight: 500;
+  color: var(--color-secondary);
+}
+
+.topic {
+  font-weight: 500;
+  color: var(--color-tertiary);
+}
+
+.highlight {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.high {
+  color: #22c55e;
+  font-weight: 600;
+}
+
+.highPerformer {
+  background: rgba(34, 197, 94, 0.05);
+}
+
+.score {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--color-warning);
+}
+
+.link {
+  color: var(--color-secondary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+/* Recommendation Badges */
+.recommendBadge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.recommendBadge.強烈推薦,
+.recommendBadge.強力推薦 {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.recommendBadge.推薦 {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+}
+
+.recommendBadge.觀察中,
+.recommendBadge.可考慮 {
+  background: rgba(100, 116, 139, 0.2);
+  color: #64748b;
+}
+
+/* Tier Badges */
+.tierBadge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.tierBadge.viral {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.tierBadge.high {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.tierBadge.average {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+}
+
+.tierBadge.low {
+  background: rgba(100, 116, 139, 0.2);
+  color: #64748b;
+}
+
+/* Comparison Grid */
+.comparisonGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.comparisonCard {
+  background: var(--color-surface);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.comparisonCard.organic {
+  border-left: 3px solid var(--color-primary);
+}
+
+.comparisonCard.paid {
+  border-left: 3px solid var(--color-warning);
+}
+
+.comparisonTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-bright);
+  margin-bottom: 1rem;
+}
+
+.comparisonStats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 1rem;
+  }
+
+  .tabs {
+    flex-wrap: wrap;
+  }
+
+  .tab {
+    flex: 1;
+    min-width: 70px;
+    text-align: center;
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .cardGrid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,327 @@
+@keyframes filterFadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-surface) 100%);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  animation: filterFadeIn 0.4s ease-out both;
+}
+
+.mainRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.timeRangeGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.pills {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.pill {
+  padding: 0.375rem 0.75rem;
+  border-radius: 100px;
+  font-size: 0.813rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  transition: var(--transition-fast);
+}
+
+.pill:hover {
+  color: var(--text-primary);
+  border-color: var(--border-active);
+}
+
+.pill.active {
+  color: var(--accent-primary);
+  background: var(--accent-primary-dim);
+  border-color: var(--accent-primary);
+}
+
+.datePickerGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  animation: fade-in 0.2s ease-out;
+}
+
+.dateField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dateLabel {
+  font-size: 0.688rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dateInput {
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-family: inherit;
+  transition: var(--transition-fast);
+}
+
+.dateInput:hover {
+  border-color: var(--border-active);
+}
+
+.dateInput:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-primary-dim);
+}
+
+.dateInput::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+  cursor: pointer;
+}
+
+.dateSeparator {
+  color: var(--text-muted);
+  padding-top: 1.25rem;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.searchWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.75rem;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.searchInput {
+  padding: 0.5rem 2rem 0.5rem 2.25rem;
+  width: 220px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  transition: var(--transition-fast);
+}
+
+.searchInput::placeholder {
+  color: var(--text-muted);
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-primary-dim);
+  width: 280px;
+}
+
+.clearBtn {
+  position: absolute;
+  right: 0.5rem;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  transition: var(--transition-fast);
+}
+
+.clearBtn:hover {
+  background: var(--accent-danger);
+  color: white;
+}
+
+.filterToggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: var(--transition-fast);
+}
+
+.filterToggle:hover {
+  color: var(--text-primary);
+  border-color: var(--border-active);
+}
+
+.filterToggle.active {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  background: var(--accent-primary-dim);
+}
+
+.filterIcon {
+  font-size: 0.625rem;
+}
+
+.expandedFilters {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+  animation: fade-in 0.2s ease-out;
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 180px;
+}
+
+.filterLabel {
+  font-size: 0.688rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.select {
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+}
+
+.select:hover {
+  border-color: var(--border-active);
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-primary-dim);
+}
+
+.clearFilters {
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid var(--accent-danger);
+  color: var(--accent-danger);
+  font-size: 0.813rem;
+  font-weight: 500;
+  transition: var(--transition-fast);
+}
+
+.clearFilters:hover {
+  background: var(--accent-danger);
+  color: white;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+  .mainRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .timeRangeGroup {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pills {
+    width: 100%;
+  }
+
+  .actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .searchWrapper {
+    width: 100%;
+  }
+
+  .searchInput {
+    width: 100%;
+  }
+
+  .searchInput:focus {
+    width: 100%;
+  }
+
+  .filterToggle {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .expandedFilters {
+    flex-direction: column;
+  }
+
+  .filterGroup {
+    width: 100%;
+  }
+}

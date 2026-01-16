@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment and secrets
+*.env
+*.env.local
+*.env.production
+*-firebase-adminsdk-*.json
+esg-reports-collection-*.json
+
+# Firebase
+.firebase/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup
+_backup/
+
+# Logs
+*.log
+npm-debug.log*

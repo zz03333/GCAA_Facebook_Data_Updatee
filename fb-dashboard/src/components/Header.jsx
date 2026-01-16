@@ -1,0 +1,56 @@
+import styles from './Header.module.css';
+
+export default function Header({ activeTab, onTabChange, onLogoClick }) {
+  const tabs = [
+    { id: 'dashboard', label: '總覽' },
+    { id: 'explorer', label: '貼文' },
+    { id: 'analytics', label: '分析' },
+    { id: 'content', label: '內容' },
+    { id: 'ads', label: '廣告' }
+  ];
+
+  return (
+    <header className={styles.header}>
+      <div className={styles.container}>
+        <div className={styles.brand}>
+          <button
+            className={styles.logo}
+            onClick={() => onLogoClick?.()}
+            title="回到首頁"
+          >
+            <span className={styles.logoText}>GCAA</span>
+          </button>
+          <div className={styles.divider} />
+          <h1 className={styles.title}>社群分析</h1>
+        </div>
+
+        <nav className={styles.nav}>
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              className={`${styles.navItem} ${activeTab === tab.id ? styles.active : ''}`}
+              onClick={() => onTabChange(tab.id)}
+            >
+              <span className={styles.navLabel}>{tab.label}</span>
+              {activeTab === tab.id && <span className={styles.navIndicator} />}
+            </button>
+          ))}
+        </nav>
+
+        <div className={styles.actions}>
+          <a
+            href="https://www.facebook.com/gcaa.org.tw"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.fbLink}
+          >
+            <svg viewBox="0 0 24 24" className={styles.fbIcon}>
+              <path fill="currentColor" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+            </svg>
+            <span>前往粉專</span>
+          </a>
+        </div>
+      </div>
+    </header>
+  );
+}
