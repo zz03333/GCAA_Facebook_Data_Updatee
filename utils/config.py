@@ -2,7 +2,7 @@
 
 FACEBOOK_CONFIG = {
     'page_id': '103640919705348',
-    'access_token': 'EAAPbnmTSpmoBQaz8PQJU8jTcLhsmMaB8cq9pYrvsHeAuzncRMgbRpWauF9vtQLNalTJd4X4idcvdTrFliXZCzxrzZCa9CvXRMCWYf8H4NFy4Fq8aay0G20ZCUxXEneQ0WGfOZBWDGfqJMC64WxwzLHAY3g3REJdmqNZCUPSC4ac6VX8Lu8SzXktQ3dERX4r1C',
+    'access_token': 'EAAPbnmTSpmoBQR3OkingLOuA8JQApumZCgZAC1Wc5Vd53huIUzNLBUKicx8okGcigEDTs4ZAm8fnvBOnLPHHvuioHvJYuW7pFJElULW9ZASvCzVZBdLQtGhDc6YYB8B7RZBvib36ZCXYRfifoxc8cFiYVZCCZB3aZC4lhgXagxXjmu19oeuD9titd0gh4dlo9ffyNBduzA0YxXDNYTXcjpQBqVDcWMaig04C4MQsMlW8oZD',
     'api_version': 'v23.0'
 }
 
