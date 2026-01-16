@@ -165,31 +165,40 @@ def get_quadrant_analysis(conn) -> List[Dict]:
     median_reach = medians['median_reach'] or 1000
     median_er = medians['median_er'] or 0.03
     
-    # 取得所有貼文資料
+    # 取得所有貼文資料 (使用最新 snapshot)
     cursor.execute("""
-        WITH latest_snapshots AS (
+        WITH latest_insights AS (
             SELECT post_id, post_impressions_unique
             FROM post_insights_snapshots
             WHERE (post_id, fetch_date) IN (
-                SELECT post_id, MAX(fetch_date) 
-                FROM post_insights_snapshots 
+                SELECT post_id, MAX(fetch_date)
+                FROM post_insights_snapshots
+                GROUP BY post_id
+            )
+        ),
+        latest_performance AS (
+            SELECT post_id, engagement_rate
+            FROM posts_performance
+            WHERE (post_id, snapshot_date) IN (
+                SELECT post_id, MAX(snapshot_date)
+                FROM posts_performance
                 GROUP BY post_id
             )
         )
-        SELECT 
+        SELECT
             p.post_id,
             p.created_time,
             p.permalink_url,
             SUBSTR(p.message, 1, 50) as content_short,
-            ls.post_impressions_unique as reach,
-            pp.engagement_rate,
+            li.post_impressions_unique as reach,
+            lp.engagement_rate,
             COALESCE(pc.issue_topic, 'unclassified') as topic_tag,
             COALESCE(pc.format_type, pc.topic_primary, 'unclassified') as format_type
         FROM posts p
-        JOIN posts_performance pp ON p.post_id = pp.post_id
+        JOIN latest_performance lp ON p.post_id = lp.post_id
         JOIN posts_classification pc ON p.post_id = pc.post_id
-        JOIN latest_snapshots ls ON p.post_id = ls.post_id
-        WHERE ls.post_impressions_unique > 0
+        JOIN latest_insights li ON p.post_id = li.post_id
+        WHERE li.post_impressions_unique > 0
         ORDER BY p.created_time DESC
     """)
     
@@ -339,24 +348,33 @@ def get_topic_performance(conn) -> List[Dict]:
 
 def get_top_posts(conn, days: int = 30, limit: int = 10) -> List[Dict]:
     """
-    取得近期表現最佳的貼文
+    取得近期表現最佳的貼文 (使用最新 snapshot)
     """
     cursor = conn.cursor()
     cursor.execute("""
-        WITH latest_snapshots AS (
-            SELECT post_id, 
-                   post_impressions_unique, 
-                   likes_count, 
-                   comments_count, 
+        WITH latest_insights AS (
+            SELECT post_id,
+                   post_impressions_unique,
+                   likes_count,
+                   comments_count,
                    shares_count
             FROM post_insights_snapshots
             WHERE (post_id, fetch_date) IN (
-                SELECT post_id, MAX(fetch_date) 
-                FROM post_insights_snapshots 
+                SELECT post_id, MAX(fetch_date)
+                FROM post_insights_snapshots
+                GROUP BY post_id
+            )
+        ),
+        latest_performance AS (
+            SELECT post_id, engagement_rate, performance_tier, percentile_rank
+            FROM posts_performance
+            WHERE (post_id, snapshot_date) IN (
+                SELECT post_id, MAX(snapshot_date)
+                FROM posts_performance
                 GROUP BY post_id
             )
         )
-        SELECT 
+        SELECT
             p.post_id,
             SUBSTR(p.message, 1, 100) as message_preview,
             p.created_time,
@@ -364,20 +382,20 @@ def get_top_posts(conn, days: int = 30, limit: int = 10) -> List[Dict]:
             pc.topic_primary,
             pc.issue_topic,
             pc.time_slot,
-            pp.engagement_rate,
-            pp.performance_tier,
-            pp.percentile_rank,
-            ls.post_impressions_unique as reach,
-            ls.likes_count + ls.comments_count + ls.shares_count as total_engagement
+            lp.engagement_rate,
+            lp.performance_tier,
+            lp.percentile_rank,
+            li.post_impressions_unique as reach,
+            li.likes_count + li.comments_count + li.shares_count as total_engagement
         FROM posts p
         JOIN posts_classification pc ON p.post_id = pc.post_id
-        JOIN posts_performance pp ON p.post_id = pp.post_id
-        JOIN latest_snapshots ls ON p.post_id = ls.post_id
+        JOIN latest_performance lp ON p.post_id = lp.post_id
+        JOIN latest_insights li ON p.post_id = li.post_id
         WHERE p.created_time >= date('now', ? || ' days')
-        ORDER BY pp.engagement_rate DESC
+        ORDER BY lp.engagement_rate DESC
         LIMIT ?
     """, (f'-{days}', limit))
-    
+
     return [dict(row) for row in cursor.fetchall()]
 
 

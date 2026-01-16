@@ -246,21 +246,30 @@ def calculate_ad_potential(conn, post_id: str) -> Dict:
     }
 
 
-def get_recommended_posts(conn, limit: int = 20, min_score: float = 50) -> List[Dict]:
+def get_recommended_posts(conn, limit: int = 20, min_score: float = 30) -> List[Dict]:
     """
     取得建議投廣的貼文清單
-    
+
     返回分數最高的前 N 則貼文
     """
     cursor = conn.cursor()
-    
-    # 取得近期貼文（30天內）
+
+    # 取得近期貼文（90天內，使用最新 snapshot）
     cursor.execute("""
+        WITH latest_performance AS (
+            SELECT post_id, engagement_rate
+            FROM posts_performance
+            WHERE (post_id, snapshot_date) IN (
+                SELECT post_id, MAX(snapshot_date)
+                FROM posts_performance
+                GROUP BY post_id
+            )
+        )
         SELECT p.post_id
         FROM posts p
-        JOIN posts_performance pp ON p.post_id = pp.post_id
-        WHERE p.created_time >= datetime('now', '-30 days')
-        ORDER BY pp.engagement_rate DESC
+        JOIN latest_performance lp ON p.post_id = lp.post_id
+        WHERE p.created_time >= datetime('now', '-90 days')
+        ORDER BY lp.engagement_rate DESC
         LIMIT 100
     """)
     

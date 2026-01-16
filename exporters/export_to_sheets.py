@@ -2703,7 +2703,7 @@ def export_ad_analytics(client, conn):
             '議題因子', '時段因子', '貼文連結'
         ])
 
-        recommended = ad_predictor.get_recommended_posts(conn, limit=50, min_score=40)
+        recommended = ad_predictor.get_recommended_posts(conn, limit=50, min_score=30)
         for item in recommended:
             breakdown = item.get('breakdown', {})
             rows.append([
@@ -2768,10 +2768,10 @@ def export_ad_analytics(client, conn):
         # === Section 4: 廣告活動清單 ===
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='ad_campaigns'")
         if cursor.fetchone():
-            rows.append(['📋 廣告活動清單', '', '', '', '', '', '', '', '', '', '', ''])
+            rows.append(['📋 廣告活動清單', '', '', '', '', '', '', '', '', '', '', '', ''])
             rows.append([
                 '活動 ID', '活動名稱', '目標', '狀態', '每日預算 (NT$)', '總預算 (NT$)',
-                '建立日期', '廣告數', '總花費 (NT$)', '總曝光', '總點擊', '平均 CPC (NT$)'
+                '開始日期', '結束日期', '廣告數', '總花費 (NT$)', '總曝光', '總點擊', '平均 CPC (NT$)'
             ])
 
             objective_chinese = {
@@ -2793,7 +2793,8 @@ def export_ad_analytics(client, conn):
                     ac.status,
                     COALESCE(ac.daily_budget, 0) as daily_budget,
                     COALESCE(ac.lifetime_budget, 0) as lifetime_budget,
-                    DATE(ac.created_time) as created_date,
+                    MIN(ai.date_start) as start_date,
+                    MAX(ai.date_stop) as end_date,
                     COUNT(DISTINCT a.ad_id) as ad_count,
                     COALESCE(SUM(ai.spend), 0) as total_spend,
                     COALESCE(SUM(ai.impressions), 0) as total_impressions,
@@ -2817,7 +2818,8 @@ def export_ad_analytics(client, conn):
                     row[3] or '',
                     row[4], row[5],
                     row[6] or '',
-                    row[7], row[8], row[9], row[10], row[11]
+                    row[7] or '',
+                    row[8], row[9], row[10], row[11], row[12]
                 ])
 
         update_with_timestamp(worksheet, 'A1', rows)
