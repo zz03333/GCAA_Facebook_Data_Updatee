@@ -13,7 +13,11 @@ from googleapiclient.discovery import build
 
 # 設定
 SPREADSHEET_ID = '1HJXQrlB0eYJsHmioLMNfCKV_OXHqqgwtwRtO9s5qbB0'
-SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(__file__), '..', 'esg-reports-collection-9661012923ed.json')
+# 支援環境變數或本地檔案
+SERVICE_ACCOUNT_FILE = os.environ.get(
+    'GOOGLE_APPLICATION_CREDENTIALS',
+    os.path.join(os.path.dirname(__file__), '..', 'esg-reports-collection-9661012923ed.json')
+)
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'public', 'data')
 
 # Sheets 設定

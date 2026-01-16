@@ -147,10 +147,12 @@ export function useData(): UseDataReturn {
           statsObj.byActionType = snapshot.docs.map((docSnap) => {
             const data = docSnap.data();
             return {
-              name: data.name,
-              count: data.count,
-              avgER: data.avgER,
-              avgReach: data.avgReach,
+              // Fallback to document ID if name is missing
+              name: data.name || data.actionType || docSnap.id,
+              count: data.count || 0,
+              // Handle different field naming conventions
+              avgER: data.avgER ?? data.avgEngagementRate ?? data.avg_er ?? 0,
+              avgReach: data.avgReach ?? data.avg_reach ?? 0,
             };
           });
           setStats({ ...statsObj });
@@ -166,10 +168,12 @@ export function useData(): UseDataReturn {
           statsObj.byTopic = snapshot.docs.map((docSnap) => {
             const data = docSnap.data();
             return {
-              name: data.name,
-              count: data.count,
-              avgER: data.avgER,
-              avgReach: data.avgReach,
+              // Fallback to document ID if name is missing
+              name: data.name || data.topic || docSnap.id,
+              count: data.count || 0,
+              // Handle different field naming conventions
+              avgER: data.avgER ?? data.avgEngagementRate ?? data.avg_er ?? 0,
+              avgReach: data.avgReach ?? data.avg_reach ?? 0,
             };
           });
           setStats({ ...statsObj });
@@ -346,6 +350,28 @@ export function useFilteredData(
           p.content.toLowerCase().includes(searchLower) ||
           (p.hashtags?.some((h) => h.toLowerCase().includes(searchLower)) ?? false)
       );
+    }
+
+    // Hour filter (from heatmap click)
+    if (filters.hour !== undefined && filters.hour !== null) {
+      result = result.filter((p) => {
+        if (!p.publishedAt) return false;
+        const postDate = new Date(p.publishedAt);
+        return postDate.getHours() === filters.hour;
+      });
+    }
+
+    // Weekday filter (from heatmap click)
+    // Note: JavaScript getDay() returns 0=Sunday, but heatmap uses 0=Monday
+    if (filters.weekday !== undefined && filters.weekday !== null) {
+      result = result.filter((p) => {
+        if (!p.publishedAt) return false;
+        const postDate = new Date(p.publishedAt);
+        // Convert JS day (0=Sun) to heatmap day (0=Mon)
+        const jsDay = postDate.getDay();
+        const heatmapDay = jsDay === 0 ? 6 : jsDay - 1;
+        return heatmapDay === filters.weekday;
+      });
     }
 
     // Sorting

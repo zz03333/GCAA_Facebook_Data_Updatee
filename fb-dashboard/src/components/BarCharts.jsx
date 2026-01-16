@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -13,42 +13,52 @@ import styles from './BarCharts.module.css';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip);
 
-// 生成單色深淺變化的顏色（簡化為 4 個漸層階段）
-function generateGradientColors(baseColor, count) {
-  // 解析 RGB 顏色
+// Available metrics for bar charts
+const METRIC_OPTIONS = [
+  { value: 'avgER', label: '平均互動率', format: 'percent' },
+  { value: 'avgReach', label: '平均觸及', format: 'number' },
+  { value: 'count', label: '貼文數', format: 'number' }
+];
+
+// Generate gradient colors based on metric values (sorted by intensity)
+function generateGradientColors(baseColor, data, metricKey) {
   const hex = baseColor.replace('#', '');
   const r = parseInt(hex.substring(0, 2), 16);
   const g = parseInt(hex.substring(2, 4), 16);
   const b = parseInt(hex.substring(4, 6), 16);
 
-  // 定義 4 個固定的漸層階段 (opacity)
-  const opacityLevels = [1.0, 0.8, 0.6, 0.4];
-  const brightnessLevels = [1.0, 0.8, 0.6, 0.4];
+  // Get max value for normalization
+  const values = data.map(d => d[metricKey] || 0);
+  const maxValue = Math.max(...values, 1);
 
-  const colors = [];
-  for (let i = 0; i < count; i++) {
-    // 將項目分配到 4 個漸層組中
-    const groupIndex = Math.min(Math.floor((i / count) * 4), 3);
-    const alpha = opacityLevels[groupIndex];
-    const factor = brightnessLevels[groupIndex];
-
-    const newR = Math.round(r * factor);
-    const newG = Math.round(g * factor);
-    const newB = Math.round(b * factor);
-    colors.push(`rgba(${newR}, ${newG}, ${newB}, ${alpha})`);
-  }
-  return colors;
+  // Generate colors based on value intensity
+  return data.map(d => {
+    const value = d[metricKey] || 0;
+    const intensity = value / maxValue;
+    // Higher value = more opaque (0.4 to 1.0 range)
+    const alpha = 0.4 + intensity * 0.6;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  });
 }
 
 function HorizontalBarChart({ data, baseColor, title, onClick }) {
   const chartRef = useRef(null);
+  const [selectedMetric, setSelectedMetric] = useState('avgER');
 
   if (!data || !data.length) return null;
 
+  const metricConfig = METRIC_OPTIONS.find(m => m.value === selectedMetric);
   const labels = data.map(d => d.name);
-  const values = data.map(d => d.avgER);
-  const counts = data.map(d => d.count);
-  const colors = generateGradientColors(baseColor, data.length);
+  const values = data.map(d => d[selectedMetric] || 0);
+  const colors = generateGradientColors(baseColor, data, selectedMetric);
+
+  // Get max value for legend scale
+  const maxValue = Math.max(...values, 1);
+
+  const formatValue = (val) => {
+    if (metricConfig?.format === 'percent') return formatPercent(val);
+    return formatNumber(val);
+  };
 
   const chartData = {
     labels,
@@ -88,9 +98,11 @@ function HorizontalBarChart({ data, baseColor, title, onClick }) {
           title: (items) => items[0]?.label || '',
           label: (context) => {
             const index = context.dataIndex;
+            const item = data[index];
             return [
-              `平均互動率: ${formatPercent(values[index])}`,
-              `貼文數: ${counts[index]} 篇`
+              `${metricConfig?.label || selectedMetric}: ${formatValue(values[index])}`,
+              `平均觸及: ${formatNumber(item.avgReach || 0)}`,
+              `貼文數: ${item.count} 篇`
             ];
           }
         }
@@ -105,7 +117,10 @@ function HorizontalBarChart({ data, baseColor, title, onClick }) {
         ticks: {
           color: '#64748b',
           font: { family: 'DM Sans', size: 11 },
-          callback: (val) => val + '%'
+          callback: (val) => {
+            if (metricConfig?.format === 'percent') return val + '%';
+            return formatNumber(val);
+          }
         },
         beginAtZero: true
       },
@@ -120,11 +135,39 @@ function HorizontalBarChart({ data, baseColor, title, onClick }) {
     }
   };
 
+  // Parse base color for legend gradient
+  const hex = baseColor.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+
   return (
     <div className={styles.chartCard}>
-      <h3 className={styles.chartTitle}>{title}</h3>
+      <div className={styles.chartHeader}>
+        <h3 className={styles.chartTitle}>{title}</h3>
+        <select
+          className={styles.metricSelect}
+          value={selectedMetric}
+          onChange={(e) => setSelectedMetric(e.target.value)}
+        >
+          {METRIC_OPTIONS.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      </div>
       <div className={styles.chartContainer} style={{ height: Math.max(data.length * 44, 200) }}>
         <Bar ref={chartRef} data={chartData} options={options} />
+      </div>
+      <div className={styles.legendRow}>
+        <span className={styles.legendLabel}>低</span>
+        <div
+          className={styles.legendGradient}
+          style={{
+            background: `linear-gradient(to right, rgba(${r},${g},${b},0.4), rgba(${r},${g},${b},1))`
+          }}
+        />
+        <span className={styles.legendLabel}>高</span>
+        <span className={styles.legendValue}>{metricConfig?.label}</span>
       </div>
       <p className={styles.hint}>點擊篩選貼文</p>
     </div>

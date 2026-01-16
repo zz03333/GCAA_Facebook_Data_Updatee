@@ -1,14 +1,19 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { formatPercent } from '../utils/formatters';
 import styles from './HeatmapChart.module.css';
 
 const WEEKDAYS = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
+// Minimum post count threshold for a cell to be considered significant
+const MIN_POST_THRESHOLD = 2;
+
 export default function HeatmapChart({ heatmapData, onClick }) {
-  const { cells, maxER } = useMemo(() => {
+  const [filterLowData, setFilterLowData] = useState(true);
+
+  const { cells, maxER, totalPosts } = useMemo(() => {
     if (!heatmapData || !heatmapData.length) {
-      return { cells: [], maxER: 0 };
+      return { cells: [], maxER: 0, totalPosts: 0 };
     }
 
     const cellMap = new Map();
@@ -16,9 +21,15 @@ export default function HeatmapChart({ heatmapData, onClick }) {
       cellMap.set(`${d.weekday}-${d.hour}`, d);
     });
 
+    // Calculate max ER only from significant cells (above threshold)
     let max = 0;
+    let total = 0;
     heatmapData.forEach(d => {
-      if (d.avgER > max) max = d.avgER;
+      total += d.count || 0;
+      // Only consider cells above threshold for max calculation if filtering is enabled
+      if (!filterLowData || d.count >= MIN_POST_THRESHOLD) {
+        if (d.avgER > max) max = d.avgER;
+      }
     });
 
     const cells = [];
@@ -34,33 +45,56 @@ export default function HeatmapChart({ heatmapData, onClick }) {
       }
     }
 
-    return { cells, maxER: max };
-  }, [heatmapData]);
+    return { cells, maxER: max, totalPosts: total };
+  }, [heatmapData, filterLowData]);
 
-  const getColor = (value, hasData) => {
-    // 無資料的格子用灰色
-    if (!hasData) return 'rgba(148, 163, 184, 0.1)';
-    // 有資料但 avgER 為 0 用較淺的綠色
+  const getColor = (value, count) => {
+    // No data
+    if (count === 0) return 'rgba(148, 163, 184, 0.1)';
+    // Below threshold (if filtering is enabled)
+    if (filterLowData && count < MIN_POST_THRESHOLD) return 'rgba(148, 163, 184, 0.15)';
+    // Has data but avgER is 0
     if (value === 0) return 'rgba(34, 197, 94, 0.35)';
-    // 有資料的格子根據 avgER 深淺變化，使用更寬的範圍讓所有資料點可見
+    // Normal: gradient based on avgER
     const intensity = Math.min(value / maxER, 1);
     return `rgba(34, 197, 94, ${0.35 + intensity * 0.55})`;
   };
 
   const handleCellClick = (cell) => {
     if (onClick && cell.count > 0) {
-      onClick({ weekday: cell.weekday, hour: cell.hour });
+      // Include weekdayName for filtering
+      onClick({
+        weekday: cell.weekday,
+        weekdayName: WEEKDAYS[cell.weekday],
+        hour: cell.hour
+      });
     }
+  };
+
+  const isClickable = (cell) => {
+    if (!filterLowData) return cell.count > 0;
+    return cell.count >= MIN_POST_THRESHOLD;
   };
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <h3 className={styles.title}>發文時段熱力圖</h3>
-        <div className={styles.legend}>
-          <span className={styles.legendLabel}>低</span>
-          <div className={styles.legendGradient} />
-          <span className={styles.legendLabel}>高</span>
+        <div className={styles.controls}>
+          <label className={styles.checkbox}>
+            <input
+              type="checkbox"
+              checked={filterLowData}
+              onChange={(e) => setFilterLowData(e.target.checked)}
+            />
+            <span className={styles.checkmark} />
+            <span>隱藏低數據時段 (&lt;{MIN_POST_THRESHOLD}篇)</span>
+          </label>
+          <div className={styles.legend}>
+            <span className={styles.legendLabel}>低</span>
+            <div className={styles.legendGradient} />
+            <span className={styles.legendLabel}>高</span>
+          </div>
         </div>
       </div>
 
@@ -83,15 +117,17 @@ export default function HeatmapChart({ heatmapData, onClick }) {
               <div className={styles.cells}>
                 {HOURS.map(hour => {
                   const cell = cells.find(c => c.weekday === weekdayIndex && c.hour === hour);
+                  const clickable = isClickable(cell);
+                  const dimmed = filterLowData && cell?.count > 0 && cell.count < MIN_POST_THRESHOLD;
                   return (
                     <div
                       key={`${weekdayIndex}-${hour}`}
-                      className={`${styles.cell} ${cell?.count > 0 ? styles.active : ''}`}
-                      style={{ backgroundColor: getColor(cell?.avgER || 0, cell?.count > 0) }}
-                      onClick={() => handleCellClick(cell)}
+                      className={`${styles.cell} ${clickable ? styles.active : ''} ${dimmed ? styles.dimmed : ''}`}
+                      style={{ backgroundColor: getColor(cell?.avgER || 0, cell?.count || 0) }}
+                      onClick={() => clickable && handleCellClick(cell)}
                       title={cell ? `${day} ${hour}:00\n互動率: ${formatPercent(cell.avgER)}\n貼文數: ${cell.count}` : ''}
                     >
-                      {cell?.count > 0 && (
+                      {cell?.count > 0 && !dimmed && (
                         <span className={styles.cellCount}>{cell.count}</span>
                       )}
                     </div>
@@ -103,7 +139,7 @@ export default function HeatmapChart({ heatmapData, onClick }) {
         </div>
       </div>
 
-      <p className={styles.hint}>數字為貼文數量 · 顏色深淺表示平均互動率</p>
+      <p className={styles.hint}>數字為貼文數量 · 顏色深淺表示平均互動率 · 點擊篩選該時段貼文</p>
     </div>
   );
 }

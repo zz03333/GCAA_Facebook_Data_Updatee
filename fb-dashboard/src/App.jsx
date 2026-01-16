@@ -41,7 +41,8 @@ function ErrorScreen({ message }) {
 }
 
 function DashboardPage({ daily, stats, timeRange, dateRange, onTimeRangeChange, onDateRangeChange, onChartClick }) {
-  const [selectedMetric, setSelectedMetric] = useState('avgEngagementRate');
+  // Support multi-select metrics (max 2)
+  const [selectedMetrics, setSelectedMetrics] = useState(['avgEngagementRate']);
 
   return (
     <div className={styles.page}>
@@ -57,8 +58,8 @@ function DashboardPage({ daily, stats, timeRange, dateRange, onTimeRangeChange, 
         daily={daily}
         timeRange={timeRange}
         dateRange={dateRange}
-        selectedMetric={selectedMetric}
-        onMetricChange={setSelectedMetric}
+        selectedMetrics={selectedMetrics}
+        onMetricChange={setSelectedMetrics}
       />
 
       {daily && daily.length > 0 ? (
@@ -66,8 +67,8 @@ function DashboardPage({ daily, stats, timeRange, dateRange, onTimeRangeChange, 
           daily={daily}
           timeRange={timeRange}
           dateRange={dateRange}
-          selectedMetric={selectedMetric}
-          onMetricChange={setSelectedMetric}
+          selectedMetrics={selectedMetrics}
+          onMetricChange={setSelectedMetrics}
           onDateClick={(date) => onChartClick('date', date)}
         />
       ) : (
@@ -109,21 +110,27 @@ function ExplorerPage({ posts, stats, timeRange, dateRange, onTimeRangeChange, o
     topic: 'all',
     search: '',
     sortBy: 'date',
-    sortOrder: 'desc'
+    sortOrder: 'desc',
+    hour: null,
+    weekday: null
   });
 
   // 處理預設篩選條件
   useMemo(() => {
     if (presetFilter) {
-      const newFilters = { ...filters, timeRange, dateRange };
+      const newFilters = { ...filters, timeRange, dateRange, hour: null, weekday: null };
       if (presetFilter.type === 'actionType') {
         newFilters.actionType = presetFilter.value;
       } else if (presetFilter.type === 'topic') {
         newFilters.topic = presetFilter.value;
+      } else if (presetFilter.type === 'time') {
+        // Heatmap click: filter by hour and weekday
+        newFilters.hour = presetFilter.value.hour;
+        newFilters.weekday = presetFilter.value.weekday;
       }
       setFilters(newFilters);
     } else {
-      setFilters(f => ({ ...f, timeRange, dateRange }));
+      setFilters(f => ({ ...f, timeRange, dateRange, hour: null, weekday: null }));
     }
   }, [timeRange, dateRange, presetFilter]);
 
@@ -141,13 +148,15 @@ function ExplorerPage({ posts, stats, timeRange, dateRange, onTimeRangeChange, o
     setFilters(f => ({
       ...f,
       actionType: 'all',
-      topic: 'all'
+      topic: 'all',
+      hour: null,
+      weekday: null
     }));
     onClearPresetFilter?.();
   };
 
   // 檢查是否有活動的篩選條件
-  const hasActiveFilter = presetFilter || filters.actionType !== 'all' || filters.topic !== 'all';
+  const hasActiveFilter = presetFilter || filters.actionType !== 'all' || filters.topic !== 'all' || filters.hour !== null;
 
   return (
     <div className={styles.page}>

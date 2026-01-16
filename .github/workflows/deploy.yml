@@ -1,6 +1,14 @@
 name: Deploy Pipeline & Dashboard
 
 on:
+  # 每天 08:30 自動部署 Dashboard (Cloud Run 08:00 執行完後)
+  schedule:
+    - cron: '30 0 * * *'  # UTC 00:30 = 台灣時間 08:30
+
+  # Cloud Run pipeline 完成後觸發
+  repository_dispatch:
+    types: [pipeline-complete]
+
   workflow_dispatch:
     inputs:
       deploy_target:
@@ -12,6 +20,12 @@ on:
           - all
           - cloud-run-only
           - dashboard-only
+      skip_sync:
+        description: 'Skip data sync from Google Sheets'
+        required: false
+        default: false
+        type: boolean
+
   push:
     branches:
       - main
@@ -28,7 +42,8 @@ jobs:
   # Job 1: Deploy Data Pipeline to Cloud Run
   # ============================================
   deploy-cloud-run:
-    if: ${{ github.event.inputs.deploy_target != 'dashboard-only' }}
+    # 排程和 repository_dispatch 觸發時跳過 Cloud Run 部署 (只部署 Dashboard)
+    if: ${{ github.event_name != 'schedule' && github.event_name != 'repository_dispatch' && github.event.inputs.deploy_target != 'dashboard-only' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -102,6 +117,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Python (for data sync)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install google-auth google-api-python-client
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -112,6 +135,20 @@ jobs:
       - name: Install dependencies
         working-directory: fb-dashboard
         run: npm ci
+
+      - name: Setup Google Credentials
+        if: ${{ github.event.inputs.skip_sync != 'true' || github.event_name == 'schedule' || github.event_name == 'repository_dispatch' }}
+        env:
+          GCP_SA_CREDENTIALS: ${{ secrets.GCP_SA_CREDENTIALS }}
+        run: |
+          echo "$GCP_SA_CREDENTIALS" > fb-dashboard/sync/gcp-credentials.json
+
+      - name: Sync data from Google Sheets
+        if: ${{ github.event.inputs.skip_sync != 'true' || github.event_name == 'schedule' || github.event_name == 'repository_dispatch' }}
+        working-directory: fb-dashboard
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: sync/gcp-credentials.json
+        run: npm run sync
 
       - name: Build dashboard
         working-directory: fb-dashboard

@@ -161,7 +161,7 @@ export default function PostsTable({ posts, onSort, sortBy, sortOrder }) {
                   onMouseMove={handleMouseMove}
                   onMouseLeave={handleMouseLeave}
                 >
-                  <span className={styles.date}>{formatDate(post.publishedAt, 'short')}</span>
+                  <span className={styles.date}>{formatDate(post.publishedAt, 'shortWithTime')}</span>
                 </td>
                 <td className={styles.td}>
                   <span

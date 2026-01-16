@@ -351,6 +351,9 @@ export interface FilterState {
   search: string;
   sortBy: 'date' | 'engagement' | 'reach' | 'shares';
   sortOrder: 'asc' | 'desc';
+  // Hour/weekday filter for heatmap click
+  hour?: number | null;
+  weekday?: number | null;
 }
 
 // ============================================================================

@@ -17,6 +17,12 @@ export function formatDate(dateStr, format = 'short') {
   if (format === 'short') {
     return date.toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' });
   }
+  if (format === 'shortWithTime') {
+    // Compact format with date and time: "1/14 17:06"
+    const datepart = date.toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' });
+    const timepart = date.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
+    return `${datepart} ${timepart}`;
+  }
   if (format === 'medium') {
     return date.toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' });
   }
