@@ -417,3 +417,81 @@ success = main_page_collection(
 - 使用相同的 Google Sheets 試算表（不同工作表）
 - 採用相同的程式架構與錯誤處理模式
 
+---
+
+## **8. Dashboard 視覺化介面實作**
+
+### **8.1. 實作完成日期**
+
+**✅ 初版完成日期：2026-01-16**
+
+### **8.2. 技術架構**
+
+**前端技術**：
+- React 18 + TypeScript
+- Vite 7 建置工具
+- Recharts 圖表庫
+- Tailwind CSS v4 樣式框架
+
+**資料流程**：
+```
+Cloud Run (08:00) → Meta API → Google Sheets
+GitHub Actions (08:30) → Sheets 同步 → 靜態 JSON → 部署 GitHub Pages
+```
+
+**部署平台**：
+- GitHub Pages: https://zz03333.github.io/gcaa-fb-dashboard/
+- Firebase Hosting: https://esg-reports-collection.web.app/
+
+### **8.3. 已實現功能**
+
+**Dashboard 總覽**：
+- ✅ KPI 卡片（貼文數、互動率、觸及、分享）- 支援多選最多 2 項
+- ✅ 趨勢分析圖表 - 7 天對比功能，顯示實際日期與星期
+- ✅ 行動類型表現圖 - 下拉選單切換指標
+- ✅ 議題表現圖 - 下拉選單切換指標
+- ✅ 發文時段熱力圖 - 可隱藏低數據時段、點擊篩選貼文
+
+**貼文瀏覽**：
+- ✅ 貼文列表篩選（時間、行動類型、議題）
+- ✅ 搜尋功能
+- ✅ 排序功能（日期、互動率、觸及、分享）
+- ✅ 貼文時間戳記顯示小時分鐘
+
+**分析頁面**：
+- ✅ 散點圖分析（觸及 vs 互動率）
+
+**廣告分析**：
+- ✅ 廣告成效追蹤
+
+**內容分析**：
+- ✅ 內容類型分析
+
+### **8.4. 自動化部署**
+
+**GitHub Actions 工作流程**：
+
+1. **觸發條件**：
+   - 每日 08:30 (UTC 00:30) 排程執行
+   - Cloud Run pipeline 完成後觸發 (`repository_dispatch`)
+   - 手動觸發 (`workflow_dispatch`)
+   - 推送到 main 分支
+
+2. **部署流程**：
+   - 同步資料：從 Google Sheets 下載最新資料到 `public/data/*.json`
+   - 建置：`npm run build`
+   - 部署：GitHub Pages
+
+### **8.5. 已修復問題**
+
+- ✅ 黑屏問題 - 刪除重複的 `useData.js` 檔案（與 `.ts` 衝突）
+- ✅ Firebase 初始化錯誤處理
+- ✅ 改用靜態 JSON 作為主要資料來源（更穩定）
+- ✅ Bundle 大小優化（從 666KB 減少到 520KB）
+
+### **8.6. 待完成功能**
+
+- [ ] 趨勢圖範圍選取（brush）功能
+- [ ] Tooltip 點擊篩選該日貼文
+- [ ] 貼文數量顯示說明文件
+
