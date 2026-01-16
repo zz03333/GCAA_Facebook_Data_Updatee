@@ -103,6 +103,8 @@ def create_tables(conn):
                 word_count INTEGER DEFAULT 0,
                 topic_primary TEXT,
                 topic_secondary TEXT,
+                format_type TEXT,
+                issue_topic TEXT,
                 campaign_id TEXT,
                 sentiment_score FLOAT,
                 has_cta BOOLEAN DEFAULT 0,
